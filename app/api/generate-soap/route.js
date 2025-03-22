@@ -14,7 +14,7 @@ export async function POST(req) {
         });
 
         const response = await openai.chat.completions.create({
-            model: "gpt-4-1106-preview",
+            model: "gpt-3.5-turbo",
             messages: [
                 { role: "system", content: "You are VetFusionAI, an expert in writing veterinary SOAP notes." },
                 {
