@@ -1,0 +1,17 @@
+
+import SOAPGenerator from "../components/SOAPGenerator";
+
+export default function Home() {
+  return (
+    <main className="min-h-screen p-10 bg-blue-100 text-black dark:bg-gray-900 dark:text-white transition-all duration-300">
+      <div className="mb-4 p-4 bg-teal-500 text-white rounded-lg shadow-lg">
+        Tailwind is working! 🌈 Try toggling dark mode 🌙
+      </div>
+
+      {/* Optional: Drop your DarkModeToggle component here */}
+      {/* <DarkModeToggle /> */}
+
+      <SOAPGenerator />
+    </main>
+  );
+}
