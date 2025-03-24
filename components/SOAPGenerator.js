@@ -1,137 +1,152 @@
-"use client";  // ✅ Required for React Hooks
+"use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { jsPDF } from "jspdf";
 
 export default function SOAPGenerator() {
-    console.log("✅ SOAPGenerator is rendering!");
+  const [signalment, setSignalment] = useState("");
+  const [history, setHistory] = useState("");
+  const [clinicalFindings, setClinicalFindings] = useState("");
+  const [assessment, setAssessment] = useState("");
+  const [plan, setPlan] = useState("");
+  const [generatedSOAP, setGeneratedSOAP] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [noteHistory, setNoteHistory] = useState([]);
 
-    const [input, setInput] = useState({
-        signalment: "",
-        history: "",
-        clinicalFindings: "",
-        assessment: "",
-        plan: "",
+  const generateSOAP = async () => {
+    setLoading(true);
+    const response = await fetch("/api/generate-soap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signalment, history, clinicalFindings, assessment, plan }),
     });
-    const [response, setResponse] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [darkMode, setDarkMode] = useState(false);
 
-    useEffect(() => {
-        const isDark = localStorage.getItem("darkMode") === "true";
-        setDarkMode(isDark);
-    }, []);
+    const data = await response.json();
+    setGeneratedSOAP(data.soapNote);
 
-    const toggleDarkMode = () => {
-        setDarkMode(!darkMode);
-        localStorage.setItem("darkMode", !darkMode);
-    };
+    setNoteHistory(prevHistory => [
+      { timestamp: new Date().toLocaleString(), note: data.soapNote },
+      ...prevHistory,
+    ]);
 
-    const handleChange = (e) => {
-        setInput({ ...input, [e.target.name]: e.target.value });
-    };
+    setLoading(false);
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setResponse("");
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedSOAP);
+    alert("SOAP Note copied to clipboard!");
+  };
 
-        try {
-            const res = await fetch("/api/generate-soap", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(input),
-            });
+  const saveAsPDF = () => {
+    const doc = new jsPDF();
+    const lines = doc.splitTextToSize(generatedSOAP, 180);
+    doc.text(lines, 10, 10);
+    doc.save("SOAP-Note.pdf");
+  };
 
-            if (!res.ok) {
-                throw new Error("Failed to fetch response");
-            }
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-teal-50 to-blue-100 dark:from-gray-900 dark:to-gray-950 py-8 px-4 sm:px-6 md:px-8">
+      <h1 className="text-5xl font-bold mb-8 text-gray-900 dark:text-white">🐾 VetFusionAI</h1>
+      <p className="text-xl font-medium mb-6 text-gray-700 dark:text-gray-300">
+        AI-Powered SOAP Notes <span className="font-semibold">Built for Veterinarians, by Veterinarians</span>
+      </p>
 
-            const data = await res.json();
-            setResponse(data.soapNote || "No response from server.");
-        } catch (error) {
-            console.error("Error fetching SOAP note:", error);
-            setResponse("Error generating SOAP note.");
-        } finally {
-            setLoading(false);
-        }
-    };
+      <div className="w-full max-w-2xl bg-white/30 dark:bg-gray-800/40 shadow-xl rounded-xl backdrop-blur-md p-6 sm:p-8 space-y-4">
+        <input
+          className="w-full p-3 rounded-lg bg-white/80 dark:bg-gray-700 placeholder-gray-600 dark:placeholder-gray-300 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600"
+          placeholder="🐶 Signalment (Age, Breed, Sex, etc.)"
+          value={signalment}
+          onChange={(e) => setSignalment(e.target.value)}
+        />
+        <textarea
+          className="w-full p-3 rounded-lg bg-white/80 dark:bg-gray-700 placeholder-gray-600 dark:placeholder-gray-300 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600"
+          placeholder="📚 History"
+          value={history}
+          onChange={(e) => setHistory(e.target.value)}
+        />
+        <textarea
+          className="w-full p-3 rounded-lg bg-white/80 dark:bg-gray-700 placeholder-gray-600 dark:placeholder-gray-300 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600"
+          placeholder="🔍 Clinical Findings"
+          value={clinicalFindings}
+          onChange={(e) => setClinicalFindings(e.target.value)}
+        />
+        <textarea
+          className="w-full p-3 rounded-lg bg-white/80 dark:bg-gray-700 placeholder-gray-600 dark:placeholder-gray-300 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600"
+          placeholder="🧠 Assessment"
+          value={assessment}
+          onChange={(e) => setAssessment(e.target.value)}
+        />
+        <textarea
+          className="w-full p-3 rounded-lg bg-white/80 dark:bg-gray-700 placeholder-gray-600 dark:placeholder-gray-300 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600"
+          placeholder="📝 Plan"
+          value={plan}
+          onChange={(e) => setPlan(e.target.value)}
+        />
 
-    return (
-        <div className={`${darkMode ? "bg-gray-900 text-white" : "bg-gradient-to-br from-green-200 to-blue-100"} flex flex-col items-center justify-center min-h-screen p-8 transition-all duration-300`}>
-            <div className={`${darkMode ? "bg-gray-800" : "bg-white"} shadow-2xl rounded-2xl p-10 w-full max-w-3xl border border-gray-200 transition-all duration-300`}>
-                {/* Dark Mode Toggle Button */}
-                <button 
-                    onClick={toggleDarkMode} 
-                    className="absolute top-5 right-5 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 shadow-md hover:scale-110 transition-all"
-                >
-                    {darkMode ? "🌞 Light Mode" : "🌙 Dark Mode"}
-                </button>
+        <button
+          className={`w-full py-3 font-semibold rounded-lg bg-gradient-to-r from-teal-400 to-blue-500 text-white hover:scale-105 shadow-md transition-transform duration-300 text-sm sm:text-base ${loading && 'opacity-60 cursor-not-allowed'}`}
+          onClick={generateSOAP}
+          disabled={loading}
+        >
+          {loading ? "🌀 Generating..." : "✨ Generate SOAP Note"}
+        </button>
 
-                <motion.h1 
-                    className="text-5xl font-extrabold text-blue-700 text-center mb-6"
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                >
-                    📝 VetFusionAI SOAP Notes
-                </motion.h1>
-                <motion.p 
-                    className="text-lg text-gray-600 text-center mb-8"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5, duration: 0.8 }}
-                >
-                    Enter patient details below, and AI will generate a SOAP note formatted for veterinarians.
-                </motion.p>
+        <button
+          className="mt-4 w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg shadow transition"
+          onClick={() => setShowHistory(true)}
+        >
+          📚 View Note History
+        </button>
+      </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {["signalment", "history", "clinicalFindings", "assessment", "plan"].map((field, index) => (
-                        <motion.div 
-                            key={field} 
-                            className="mb-6"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.2, duration: 0.5 }}
-                        >
-                            <label className="block text-lg font-medium text-gray-800 dark:text-gray-300 capitalize">
-                                {field.replace(/([A-Z])/g, " $1").trim()}:
-                            </label>
-                            <textarea
-                                className="mt-2 p-3 border border-gray-300 rounded-xl w-full text-black bg-white shadow-sm focus:ring focus:ring-blue-300 transition-all dark:bg-gray-700 dark:text-white"
-                                rows="2"
-                                name={field}
-                                placeholder={`Enter ${field}...`}
-                                value={input[field]}
-                                onChange={handleChange}
-                            />
-                        </motion.div>
-                    ))}
-                    <motion.button
-                        type="submit"
-                        className="w-full py-3 mt-4 bg-blue-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-blue-700 transition-all"
-                        disabled={loading}
-                        whileHover={{ scale: 1.05 }}
-                    >
-                        {loading ? "Generating..." : "Generate SOAP Note"}
-                    </motion.button>
-                </form>
+      {generatedSOAP && (
+        <div className="mt-8 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
+          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">📋 Generated SOAP Note</h2>
+          <div className="text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{generatedSOAP}</div>
 
-                {response && (
-                    <motion.div 
-                        className="mt-8 bg-gray-50 p-6 border border-gray-300 rounded-xl shadow-lg dark:bg-gray-800"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                    >
-                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📝 Generated SOAP Note</h2>
-                        <pre className="text-gray-700 mt-4 whitespace-pre-wrap font-mono p-4 bg-gray-100 rounded-lg dark:bg-gray-700 dark:text-white">
-                            {response}
-                        </pre>
-                    </motion.div>
-                )}
-            </div>
+          <div className="flex gap-4 justify-center mt-6">
+            <button
+              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg shadow-md transition text-sm sm:text-base"
+              onClick={copyToClipboard}
+            >
+              📋 Copy to Clipboard
+            </button>
+            <button
+              className="bg-gray-700 hover:bg-gray-800 text-white py-2 px-5 rounded-lg shadow-md transition text-sm sm:text-base"
+              onClick={saveAsPDF}
+            >
+              📄 Save as PDF
+            </button>
+          </div>
         </div>
-    );
-}
+      )}
 
+      {showHistory && (
+        <div className="mt-8 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">📚 SOAP Note History</h2>
+            <button
+              className="text-gray-500 dark:text-gray-300 hover:text-gray-700"
+              onClick={() => setShowHistory(false)}
+            >
+              ✖️ Close
+            </button>
+          </div>
+          {noteHistory.length === 0 ? (
+            <p className="text-gray-600 dark:text-gray-300">No SOAP notes generated yet.</p>
+          ) : (
+            <ul className="space-y-4">
+              {noteHistory.map((entry, index) => (
+                <li key={index} className="p-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">{entry.timestamp}</span>
+                  <p className="mt-2 whitespace-pre-wrap text-gray-700 dark:text-gray-200">{entry.note}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
