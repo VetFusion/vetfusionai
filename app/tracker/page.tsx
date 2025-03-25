@@ -44,7 +44,7 @@ export default function TrackerPage() {
     if (!recheck) return false;
     const today = new Date();
     const date = new Date(recheck);
-    const diff = (date - today) / (1000 * 60 * 60 * 24);
+    const diff = (date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
     return diff >= 0 && diff <= 7;
   };
 
