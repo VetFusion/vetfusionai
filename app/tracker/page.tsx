@@ -8,25 +8,26 @@ export default function TrackerPage() {
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [darkMode, setDarkMode] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
 
   useEffect(() => {
     fetchPatients();
   }, []);
 
   const fetchPatients = async () => {
-    const { data, error } = await supabase.from('master_tracker').select('*');
-    if (error) console.error('Error fetching:', error);
+    const { data, error } = await supabase.from("master_tracker").select("*");
+    if (error) console.error("Error fetching:", error);
     else setPatients(data);
   };
 
   const savePatient = async (patient) => {
     const { error } = await supabase
-      .from('master_tracker')
+      .from("master_tracker")
       .update(patient)
-      .eq('id', patient.id);
+      .eq("id", patient.id);
 
-    if (error) alert('❌ Error saving patient.');
-    else alert('✅ Patient saved!');
+    if (error) alert("❌ Error saving patient.");
+    else alert("✅ Patient saved!");
   };
 
   const handleInputChange = (index, key, value) => {
@@ -41,7 +42,9 @@ export default function TrackerPage() {
     const matchesSearch = [p.Name, p.Location, p.Species, p.Status]
       .filter(Boolean)
       .some((val) => val.toLowerCase().includes(filter.toLowerCase()));
-    const matchesStatus = statusFilter === "All" || p.Status?.toLowerCase() === statusFilter.toLowerCase();
+    const matchesStatus =
+      statusFilter === "All" ||
+      p.Status?.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
@@ -52,8 +55,25 @@ export default function TrackerPage() {
     hospice: "bg-purple-100 text-purple-800 dark:bg-purple-600 dark:text-white",
   };
 
+  const headers = [
+    "Name",
+    "Location",
+    "Species",
+    "Status",
+    "Weight",
+    "SOAP_Date",
+    "Recheck_Due",
+    "Current_Meds",
+    "Case_Summary",
+    "Save",
+  ];
+
   return (
-    <div className={`${darkMode ? "dark bg-gray-900 text-white" : "bg-white text-black"} min-h-screen p-6`}>
+    <div
+      className={`${
+        darkMode ? "dark bg-gray-900 text-white" : "bg-white text-black"
+      } min-h-screen p-6`}
+    >
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">🐾 VetFusionAI Tracker</h1>
         <button
@@ -69,16 +89,18 @@ export default function TrackerPage() {
           placeholder="🔎 Search..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+          className="p-2 border rounded bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-white"
         />
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          className="p-2 border rounded bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-white"
         >
-          {['All', 'Stable', 'Monitoring', 'Active', 'Hospice'].map((status) => (
-            <option key={status} value={status}>{status}</option>
+          {["All", "Stable", "Monitoring", "Active", "Hospice"].map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
           ))}
         </select>
       </div>
@@ -87,20 +109,27 @@ export default function TrackerPage() {
         <table className="w-full">
           <thead className="sticky top-0 bg-gray-200 dark:bg-gray-800">
             <tr>
-              {["Name", "Location", "Species", "Status", "Weight", "SOAP_Date", "Recheck_Due", "Save"].map(h => (
-                <th key={h} className="p-2 border text-left">{h.replace("_", " ")}</th>
+              {headers.map((h) => (
+                <th key={h} className="p-2 border text-left">
+                  {h.replace("_", " ")}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filteredPatients.map((patient, idx) => (
-              <tr key={patient.id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
-                {['Name', 'Location', 'Species', 'Status', 'Weight', 'SOAP_Date', 'Recheck_Due'].map((key) => (
+              <tr
+                key={patient.id}
+                className="hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                {headers.slice(0, -1).map((key) => (
                   <td key={key} className="p-2 border">
                     <input
                       value={patient[key] || ""}
-                      onChange={(e) => handleInputChange(idx, key, e.target.value)}
-                      className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-full p-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      onChange={(e) =>
+                        handleInputChange(idx, key, e.target.value)
+                      }
+                      className="bg-transparent w-full focus:outline-none text-gray-900 dark:text-gray-100"
                     />
                   </td>
                 ))}
@@ -117,6 +146,26 @@ export default function TrackerPage() {
           </tbody>
         </table>
       </div>
+
+      {selectedPatient && (
+        <div className="fixed inset-0 bg-black/40 flex justify-end">
+          <div className="bg-white dark:bg-gray-800 w-80 p-4 overflow-y-auto">
+            <button
+              className="float-right text-red-500"
+              onClick={() => setSelectedPatient(null)}
+            >
+              ✖️
+            </button>
+            <h2 className="text-xl font-bold mb-2">{selectedPatient.Name}</h2>
+            {Object.entries(selectedPatient).map(([key, val]) => (
+              <div key={key} className="my-2 text-sm">
+                <strong>{key.replace("_", " ")}:</strong> {String(val)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
