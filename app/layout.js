@@ -20,7 +20,7 @@ export const metadata = {
   openGraph: {
     title: "VetFusionAI - AI-Powered Veterinary SOAP Notes",
     description:
-      "Efficiently create detailed veterinary SOAP notes using advanced AI. Built for veterinarians, by veterinarians.",
+      "Building a living, intelligent medical memory for every animal, helping you think smarter, act faster, and never miss a beat.",
     url: "https://vetfusionai.com",
     siteName: "VetFusionAI",
     images: [
@@ -36,7 +36,8 @@ export const metadata = {
   twitter: {
     card: "summary_large_image",
     title: "VetFusionAI - AI Veterinary SOAP Notes",
-    description: "Create accurate veterinary SOAP notes in seconds with VetFusionAI.",
+    description:
+      "Building a living, intelligent medical memory for every animal, helping you think smarter, act faster, and never miss a beat.",
     images: ["https://vetfusionai.com/logo.webp"],
   },
 };

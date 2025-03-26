@@ -69,18 +69,17 @@ export default function TrackerPage() {
   ];
 
   return (
-    <div
-      className={`${
-        darkMode ? "dark bg-gray-900 text-white" : "bg-white text-black"
-      } min-h-screen p-6`}
-    >
+    <div className={`min-h-screen p-6 transition-colors duration-300 bg-white text-gray-800 dark:bg-gray-900 dark:text-white`}>
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">🐾 VetFusionAI Tracker</h1>
         <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700"
+          onClick={() => {
+            setDarkMode(!darkMode);
+            document.documentElement.classList.toggle("dark", !darkMode);
+          }}
+          className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
         >
-          {darkMode ? "☀️ Light" : "🌙 Dark"}
+          {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
         </button>
       </div>
 
@@ -124,12 +123,13 @@ export default function TrackerPage() {
               >
                 {headers.slice(0, -1).map((key) => (
                   <td key={key} className="p-2 border">
-                    <input
+                    <textarea
                       value={patient[key] || ""}
                       onChange={(e) =>
                         handleInputChange(idx, key, e.target.value)
                       }
-                      className="bg-transparent w-full focus:outline-none text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-300"
+                      className="bg-transparent w-full h-full resize-y outline-none text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-300"
+                      rows={key === "Current_Meds" || key === "Case_Summary" ? 3 : 1}
                     />
                   </td>
                 ))}
