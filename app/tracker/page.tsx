@@ -89,13 +89,13 @@ export default function TrackerPage() {
           placeholder="🔎 Search..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="p-2 border rounded bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-white"
+          className="p-2 border rounded bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
         />
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="p-2 border rounded bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-white"
+          className="p-2 border rounded bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
         >
           {["All", "Stable", "Monitoring", "Active", "Hospice"].map((status) => (
             <option key={status} value={status}>
@@ -129,7 +129,7 @@ export default function TrackerPage() {
                       onChange={(e) =>
                         handleInputChange(idx, key, e.target.value)
                       }
-                      className="bg-transparent w-full focus:outline-none text-gray-900 dark:text-gray-100"
+                      className="bg-transparent w-full focus:outline-none text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-300"
                     />
                   </td>
                 ))}
@@ -168,4 +168,3 @@ export default function TrackerPage() {
     </div>
   );
 }
-
