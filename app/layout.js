@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "VetFusionAI",
-  description: "AI-Powered Veterinary SOAP Notes - Built for Veterinarians, by Veterinarians",
+  description: "Building a living, intelligent medical memory for every animal, helping you think smarter, act faster, and never miss a beat.",
   metadataBase: new URL("https://vetfusionai.com"),
   openGraph: {
     title: "VetFusionAI - AI-Powered Veterinary SOAP Notes",
@@ -46,7 +46,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${geistSans.variable} ${geistMono.variable} dark`}
       suppressHydrationWarning
     >
       <head>
@@ -55,6 +55,22 @@ export default function RootLayout({ children }) {
         <link
           href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400&display=swap"
           rel="stylesheet"
+        />
+
+        {/* Google Analytics Script */}
+        <script
+          async
+          src={`https://www.googletagmanager.com/gtag/js?id=YOUR_TRACKING_ID`}
+        ></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'YOUR_TRACKING_ID');
+            `,
+          }}
         />
       </head>
       <body className="font-sans antialiased bg-white text-black dark:bg-gray-900 dark:text-white transition-all duration-300">
