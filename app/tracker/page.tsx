@@ -1,96 +1,238 @@
-// New version of /app/tracker/page.tsx
+// /app/tracker/page.tsx — Adds collapsible dropdown per animal + working modals
 "use client";
 
-import React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { format } from "date-fns";
+import { format, isBefore, addDays } from "date-fns";
+import toast, { Toaster } from "react-hot-toast";
 
-// ✅ Add TypeScript types to remove red squiggles
+if (typeof window !== "undefined") {
+  document.documentElement.classList.add("dark");
+}
 
-type TrackerEntry = {
+interface TrackerEntry {
+  id?: number;
   Name: string;
-  Location: string;
-  SOAP_Date: string;
-  Recheck_Due?: string;
-  Case_Summary?: string;
-  Full_SOAP?: string;
-};
+  Location: string | null;
+  SOAP_Date: string | null;
+  Recheck_Due: string | null;
+  Case_Summary: string | null;
+  Full_SOAP: string | null;
+}
 
 export default function TrackerPage() {
-  const [soapEntries, setSoapEntries] = useState<TrackerEntry[]>([]);
+  const [entries, setEntries] = useState<TrackerEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<TrackerEntry | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editEntry, setEditEntry] = useState<TrackerEntry | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const fetchData = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("master_tracker")
+      .select("id, Name, Location, SOAP_Date, Recheck_Due, Case_Summary, Full_SOAP")
+      .order("SOAP_Date", { ascending: false });
+
+    if (!error && data) setEntries(data);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchTrackerData = async () => {
-      const { data, error } = await supabase
-        .from("master_tracker")
-        .select("Name, Location, SOAP_Date, Recheck_Due, Case_Summary, Full_SOAP")
-        .order("SOAP_Date", { ascending: false })
-        .limit(50);
-
-      if (error) {
-        console.error("🛑 Error fetching tracker data:", error);
-      } else {
-        setSoapEntries(data as TrackerEntry[]);
-      }
-
-      setLoading(false);
-    };
-
-    fetchTrackerData();
+    fetchData();
   }, []);
 
+  const formatDate = (d: string | null) => {
+    if (!d || isNaN(Date.parse(d))) return "—";
+    return format(new Date(d), "MMM d, yyyy");
+  };
+
+  const getRecheckColor = (d: string | null) => {
+    if (!d || isNaN(Date.parse(d))) return "text-gray-400";
+    const date = new Date(d);
+    if (isBefore(date, new Date())) return "text-red-600 dark:text-red-400";
+    if (isBefore(date, addDays(new Date(), 7))) return "text-yellow-600 dark:text-yellow-400";
+    return "text-green-600 dark:text-green-400";
+  };
+
+  const groupedEntries = entries.reduce((acc: Record<string, TrackerEntry[]>, entry) => {
+    if (!acc[entry.Name]) acc[entry.Name] = [];
+    acc[entry.Name].push(entry);
+    return acc;
+  }, {});
+
+  const filteredNames = Object.keys(groupedEntries).filter((name) =>
+    name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleEdit = (entry: TrackerEntry) => {
+    setEditEntry(entry);
+    setEditMode(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editEntry) return;
+    let result;
+    if (editEntry.id) {
+      result = await supabase
+        .from("master_tracker")
+        .update({
+          SOAP_Date: editEntry.SOAP_Date,
+          Recheck_Due: editEntry.Recheck_Due,
+          Case_Summary: editEntry.Case_Summary,
+          Name: editEntry.Name,
+          Location: editEntry.Location,
+          Full_SOAP: editEntry.Full_SOAP,
+        })
+        .eq("id", editEntry.id);
+    } else {
+      result = await supabase
+        .from("master_tracker")
+        .insert({
+          SOAP_Date: editEntry.SOAP_Date,
+          Recheck_Due: editEntry.Recheck_Due,
+          Case_Summary: editEntry.Case_Summary,
+          Name: editEntry.Name,
+          Location: editEntry.Location,
+          Full_SOAP: editEntry.Full_SOAP,
+        });
+    }
+
+    if (!result.error) {
+      toast.success("✅ Saved successfully!");
+      setEditMode(false);
+      fetchData();
+    } else {
+      toast.error("❌ Error saving changes.");
+    }
+  };
+
+  const toggleExpanded = (name: string) => {
+    setExpanded((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-blue-100 dark:from-gray-900 dark:to-gray-950 py-12 px-6">
-      <h1 className="text-4xl font-bold mb-6 text-center text-gray-900 dark:text-white">📚 Master Tracker</h1>
+    <div className="min-h-screen py-12 px-6 bg-gray-950 text-white overflow-y-auto">
+      <Toaster position="top-center" />
+      <div className="max-w-2xl mx-auto mb-6 flex gap-4">
+      <button
+        onClick={() => {
+          setEditEntry({
+            Name: '',
+            Location: null,
+            SOAP_Date: '',
+            Recheck_Due: '',
+            Case_Summary: '',
+            Full_SOAP: ''
+          });
+          setEditMode(true);
+        }}
+        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+      >
+        ➕ New SOAP Entry
+      </button>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="🔍 Search by name..."
+          className="flex-grow px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white shadow"
+        />
+        <button
+          onClick={fetchData}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+        >
+          🔄 Refresh
+        </button>
+      </div>
 
       {loading ? (
-        <p className="text-center text-gray-600 dark:text-gray-300">Loading tracker data...</p>
+        <p className="text-center text-gray-300">Loading...</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-          {soapEntries.map((entry, i) => (
-            <div
-              key={i}
-              className="bg-white dark:bg-gray-800 shadow-md rounded-xl p-4 cursor-pointer hover:ring-2 hover:ring-teal-400 transition"
-              onClick={() => setSelected(entry)}
-            >
-              <h2 className="text-xl font-semibold mb-1">{entry.Name}</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{entry.Location}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                📅 {format(new Date(entry.SOAP_Date), "MMM d, yyyy")}
-              </p>
-              <p className="mt-2 text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
-                {entry.Case_Summary}
-              </p>
-              {entry.Recheck_Due && (
-                <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
-                  🔁 Recheck Due: {entry.Recheck_Due}
-                </p>
-              )}
-            </div>
-          ))}
+        <div className="space-y-6 max-w-5xl mx-auto pb-24">
+          {filteredNames.map((name, idx) => {
+            const entries = groupedEntries[name];
+            const firstEntry = entries[0];
+            const isOpen = expanded[name];
+            return (
+              <div key={idx} className="bg-gray-800 rounded-xl shadow p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-2xl font-semibold text-white">{name}</h2>
+                  <button
+                    onClick={() => toggleExpanded(name)}
+                    className="text-sm text-teal-400 hover:underline"
+                  >
+                    {isOpen ? "🔼 Hide all SOAPs" : "🔽 Show all SOAPs"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(isOpen ? entries : [firstEntry]).map((entry, i) => (
+                    <div
+                      key={i}
+                      className="bg-gray-900 p-4 rounded-xl border border-gray-700 cursor-pointer hover:ring-2 hover:ring-teal-500"
+                      onClick={() => setSelected(entry)}
+                    >
+                      <p className="text-sm text-gray-400">📅 {formatDate(entry.SOAP_Date)}</p>
+                      <p className="text-sm text-gray-200 mt-1">{entry.Case_Summary}</p>
+                      {entry.Recheck_Due && (
+                        <p className={`text-xs mt-1 ${getRecheckColor(entry.Recheck_Due)}`}>
+                          🔁 Recheck Due: {formatDate(entry.Recheck_Due)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {selected && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-auto">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
+          <div className="bg-gray-900 p-6 rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-auto">
+            <h2 className="text-2xl font-bold mb-4 text-white">
               {selected.Name} – Full SOAP
             </h2>
-            <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800 dark:text-gray-200">
-              {selected.Full_SOAP}
+            <pre className="whitespace-pre-wrap text-sm text-gray-200 bg-gray-800 p-4 rounded-xl border border-gray-700">
+              {selected.Full_SOAP || "No SOAP available."}
             </pre>
-
-            <div className="mt-6 text-center">
+            <div className="mt-6 flex justify-between">
               <button
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
                 onClick={() => setSelected(null)}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
               >
                 ✖️ Close
               </button>
+              <button
+                onClick={() => handleEdit(selected)}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg"
+              >
+                ✏️ Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editMode && editEntry && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 overflow-auto">
+          <div className="bg-gray-900 p-6 rounded-2xl shadow-xl w-full max-w-xl">
+            <h2 className="text-2xl font-bold mb-4 text-white">
+              ✏️ Edit {editEntry.Name}
+            </h2>
+            <div className="space-y-4">
+              <input type="text" value={editEntry.Name || ''} onChange={(e) => setEditEntry({ ...editEntry, Name: e.target.value })} placeholder="Name" className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
+              <input type="text" value={editEntry.Location || ''} onChange={(e) => setEditEntry({ ...editEntry, Location: e.target.value })} placeholder="Location (optional)" className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
+              <input type="date" value={editEntry.SOAP_Date || ''} onChange={(e) => setEditEntry({ ...editEntry, SOAP_Date: e.target.value })} className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
+              <input type="date" value={editEntry.Recheck_Due || ''} onChange={(e) => setEditEntry({ ...editEntry, Recheck_Due: e.target.value })} className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
+              <textarea placeholder="Case Summary" value={editEntry.Case_Summary || ''} onChange={(e) => setEditEntry({ ...editEntry, Case_Summary: e.target.value })} rows={3} className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
+              <textarea placeholder="Full SOAP (optional)" value={editEntry.Full_SOAP || ''} onChange={(e) => setEditEntry({ ...editEntry, Full_SOAP: e.target.value })} rows={6} className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
+            </div>
+            <div className="mt-6 flex justify-between">
+              <button onClick={() => setEditMode(false)} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">✖️ Cancel</button>
+              <button onClick={saveEdit} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">💾 Save Changes</button>
             </div>
           </div>
         </div>
