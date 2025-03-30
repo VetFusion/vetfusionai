@@ -1,5 +1,6 @@
 import "../public/output.css";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -73,8 +74,10 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className="font-sans antialiased bg-white text-black dark:bg-gray-900 dark:text-white transition-all duration-300">
-        {children}
-      </body>
+  <Toaster position="top-center" />  {/* ✅ Toast System Hooked Up */}
+  {children}
+</body>
+
     </html>
   );
 }

@@ -1,36 +1,64 @@
+import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 export async function POST(req) {
-    try {
-        const { signalment, history, clinicalFindings, assessment, plan } = await req.json();
+  const body = await req.json();
+  const { signalment, history, clinicalFindings, weight, previousSOAPs } = body;
 
-        if (!process.env.OPENAI_API_KEY) {
-            console.error("❌ OPENAI_API_KEY is missing in environment variables!");
-            return new Response(JSON.stringify({ message: "Missing API Key" }), { status: 500 });
-        }
+  // 🧠 Add past SOAPs to context
+  const pastSOAPText = previousSOAPs?.length
+    ? previousSOAPs.map((soap, i) => `#${i + 1}:\n${soap}`).join("\n\n")
+    : "None available.";
 
-        const openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+  const prompt = `
+You are assisting a highly skilled veterinarian at Delta Rescue — a no-kill, care-for-life animal sanctuary handling advanced internal medicine, emergencies, geriatrics, and chronic disease.
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                { role: "system", content: "You are VetFusionAI, an expert in writing veterinary SOAP notes." },
-                {
-                    role: "user",
-                    content: `Generate a SOAP note for this case:\nSignalment: ${signalment}\nHistory: ${history}\nClinical Findings: ${clinicalFindings}\nAssessment: ${assessment}\nPlan: ${plan}`
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000
-        });
+🧠 GOAL:
+Create a new SOAP note that builds on the provided clinical inputs AND the patient’s historical SOAP notes. You are writing for real medical use — be smart, thorough, and medically sound.
 
-        return new Response(JSON.stringify({ soapNote: response.choices[0].message.content }), { status: 200 });
+✍️ FORMAT:
+Return a complete SOAP note in this style:
+- 🩺 Signalment
+- 📚 History
+- 🔍 Clinical Findings
+- 🧠 Assessment (with differentials)
+- 📝 Plan (including diagnostics, weight-based meds, recheck, owner education)
 
-    } catch (error) {
-        console.error("❌ API error:", error);
-        return new Response(JSON.stringify({ message: `Error generating SOAP note: ${error.message}` }), { status: 500 });
-    }
+🎯 INSTRUCTIONS:
+- If input fields are vague, assume plausible clinical defaults.
+- Expand shorthand terms like “ADR” or “HBC”.
+- If weight is provided, use it to calculate mg/kg dosages.
+- If previousSOAPs are provided, build on the chronic history, trends, medications, or pending diagnostics.
+
+🐾 Patient Weight: ${weight || "N/A"}
+
+📜 Previous SOAP Notes:
+${pastSOAPText}
+
+---
+
+🩺 Signalment: ${signalment || "N/A"}
+📚 History: ${history || "N/A"}
+🔍 Clinical Findings: ${clinicalFindings || "N/A"}
+
+Return a fully formatted Delta-style SOAP note.
+`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+    });
+
+    const soapNote = completion.choices[0].message.content;
+    return NextResponse.json({ soapNote });
+  } catch (error) {
+    console.error("AI generation failed:", error);
+    return NextResponse.json({ error: "AI generation failed" }, { status: 500 });
+  }
 }
-

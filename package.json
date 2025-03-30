@@ -11,13 +11,15 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.3",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.5.0",
     "jspdf": "^3.0.1",
     "next": "15.2.3",
     "next-auth": "^4.24.11",
     "openai": "^4.88.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.5.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.15",
