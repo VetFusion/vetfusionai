@@ -30,19 +30,50 @@ export default function TrackerPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const fetchData = async () => {
-    setLoading(true);
+  setLoading(true);
+  let fullData: TrackerEntry[] = [];
+  let from = 0;
+  const batchSize = 1000;
+  let keepGoing = true;
+
+  while (keepGoing) {
     const { data, error } = await supabase
       .from("master_tracker")
-      .select("id, Name, Location, SOAP_Date, Recheck_Due, Case_Summary, Full_SOAP")
-      .order("SOAP_Date", { ascending: false });
+      .select("*", { count: "exact" })
+      .order("SOAP_Date", { ascending: false })
+      .range(from, from + batchSize - 1);
 
-    if (!error && data) setEntries(data);
-    setLoading(false);
-  };
+    if (error) {
+      console.error("🛑 Supabase fetch error:", error);
+      break;
+    }
+
+    if (data) {
+      fullData = fullData.concat(data);
+      keepGoing = data.length === batchSize;
+      from += batchSize;
+    } else {
+      keepGoing = false;
+    }
+  }
+
+  console.log("🐾 Supabase Data Fetched:", fullData);
+  console.log("🔍 All Names:", fullData.map(e => e.Name?.toLowerCase()));
+  setEntries(fullData);
+  setLoading(false);
+};
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // 🧹 Auto-cleaner: Log rows with missing SOAP_Date or Name
+  useEffect(() => {
+    const broken = entries.filter(e => !e.SOAP_Date || !e.Name?.trim());
+    if (broken.length) {
+      console.warn("🧹 Found broken tracker entries:", broken);
+    }
+  }, [entries]);
 
   const formatDate = (d: string | null) => {
     if (!d || isNaN(Date.parse(d))) return "—";
@@ -58,14 +89,15 @@ export default function TrackerPage() {
   };
 
   const groupedEntries = entries.reduce((acc: Record<string, TrackerEntry[]>, entry) => {
-    if (!acc[entry.Name]) acc[entry.Name] = [];
-    acc[entry.Name].push(entry);
+    // if (!entry.SOAP_Date) return acc;
+    const key = entry.Name.toLowerCase();
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(entry);
     return acc;
   }, {});
 
   const filteredNames = Object.keys(groupedEntries).filter((name) =>
-    name.toLowerCase().includes(search.toLowerCase())
-  );
+    name.includes(search.toLowerCase()));
 
   const handleEdit = (entry: TrackerEntry) => {
     setEditEntry(entry);
@@ -116,19 +148,19 @@ export default function TrackerPage() {
   return (
     <div className="min-h-screen py-12 px-6 bg-gray-950 text-white overflow-y-auto">
       <Toaster position="top-center" />
-      <div className="max-w-2xl mx-auto mb-6 flex gap-4">
+      <div className="max-w-2xl mx-auto mb-6 flex flex-wrap gap-4 items-center">
       <button
-        onClick={() => {
-          setEditEntry({
-            Name: '',
-            Location: null,
-            SOAP_Date: '',
-            Recheck_Due: '',
-            Case_Summary: '',
-            Full_SOAP: ''
-          });
-          setEditMode(true);
-        }}
+          onClick={() => {
+            setEditEntry({
+              Name: '',
+              Location: null,
+              SOAP_Date: '',
+              Recheck_Due: '',
+              Case_Summary: '',
+              Full_SOAP: ''
+            });
+            setEditMode(true);
+          }}
         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
       >
         ➕ New SOAP Entry
@@ -139,14 +171,36 @@ export default function TrackerPage() {
           placeholder="🔍 Search by name..."
           className="flex-grow px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white shadow"
         />
-        <button
-          onClick={fetchData}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                <button
+          onClick={() => {
+            const broken = entries.filter(e => !e.SOAP_Date || !e.Name?.trim());
+            console.warn("🧹 Cleaner Triggered — Broken Rows:", broken);
+            toast(`🧼 Found ${broken.length} broken rows. Check console.`, { icon: '🧹' });
+          }}
+          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
         >
-          🔄 Refresh
+          🧹 Audit Missing Dates</button>
+        <button
+          onClick={async () => {
+            const broken = entries.filter(e => (!e.SOAP_Date || e.SOAP_Date.trim() === '') && e.id);
+            if (broken.length === 0) {
+              toast('✅ No missing SOAP_Date entries to fix.');
+              return;
+            }
+
+            const updates = broken.map(row =>
+              supabase.from('master_tracker').update({ SOAP_Date: '2025-01-01' }).eq('id', row.id)
+            );
+
+            await Promise.all(updates);
+            toast.success(`🧼 Fixed ${broken.length} missing dates with placeholder.`);
+            fetchData();
+          }}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+        >
+          🛠 Fix Missing Dates
         </button>
       </div>
-
       {loading ? (
         <p className="text-center text-gray-300">Loading...</p>
       ) : (
@@ -158,7 +212,7 @@ export default function TrackerPage() {
             return (
               <div key={idx} className="bg-gray-800 rounded-xl shadow p-4">
                 <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-2xl font-semibold text-white">{name}</h2>
+                  <h2 className="text-2xl font-semibold text-white">{entries[0].Name}</h2>
                   <button
                     onClick={() => toggleExpanded(name)}
                     className="text-sm text-teal-400 hover:underline"
