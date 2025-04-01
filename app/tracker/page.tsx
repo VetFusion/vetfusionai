@@ -1,4 +1,3 @@
-// /app/tracker/page.tsx — Adds collapsible dropdown per animal + working modals
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -21,6 +20,10 @@ interface TrackerEntry {
 }
 
 export default function TrackerPage() {
+  const handleEdit = (entry: TrackerEntry) => {
+    setEditEntry(entry);
+    setEditMode(true);
+  };
   const [entries, setEntries] = useState<TrackerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -30,44 +33,41 @@ export default function TrackerPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const fetchData = async () => {
-  setLoading(true);
-  let fullData: TrackerEntry[] = [];
-  let from = 0;
-  const batchSize = 1000;
-  let keepGoing = true;
+    setLoading(true);
+    let fullData: TrackerEntry[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let keepGoing = true;
 
-  while (keepGoing) {
-    const { data, error } = await supabase
-      .from("master_tracker")
-      .select("*", { count: "exact" })
-      .order("SOAP_Date", { ascending: false })
-      .range(from, from + batchSize - 1);
+    while (keepGoing) {
+      const { data, error } = await supabase
+        .from("master_tracker")
+        .select("*", { count: "exact" })
+        .order("SOAP_Date", { ascending: false })
+        .range(from, from + batchSize - 1);
 
-    if (error) {
-      console.error("🛑 Supabase fetch error:", error);
-      break;
+      if (error) {
+        console.error("🛑 Supabase fetch error:", error);
+        break;
+      }
+
+      if (data) {
+        fullData = fullData.concat(data);
+        keepGoing = data.length === batchSize;
+        from += batchSize;
+      } else {
+        keepGoing = false;
+      }
     }
 
-    if (data) {
-      fullData = fullData.concat(data);
-      keepGoing = data.length === batchSize;
-      from += batchSize;
-    } else {
-      keepGoing = false;
-    }
-  }
-
-  console.log("🐾 Supabase Data Fetched:", fullData);
-  console.log("🔍 All Names:", fullData.map(e => e.Name?.toLowerCase()));
-  setEntries(fullData);
-  setLoading(false);
-};
+    setEntries(fullData);
+    setLoading(false);
+  };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // 🧹 Auto-cleaner: Log rows with missing SOAP_Date or Name
   useEffect(() => {
     const broken = entries.filter(e => !e.SOAP_Date || !e.Name?.trim());
     if (broken.length) {
@@ -89,7 +89,6 @@ export default function TrackerPage() {
   };
 
   const groupedEntries = entries.reduce((acc: Record<string, TrackerEntry[]>, entry) => {
-    // if (!entry.SOAP_Date) return acc;
     const key = entry.Name.toLowerCase();
     if (!acc[key]) acc[key] = [];
     acc[key].push(entry);
@@ -97,81 +96,30 @@ export default function TrackerPage() {
   }, {});
 
   const filteredNames = Object.keys(groupedEntries).filter((name) =>
-    name.includes(search.toLowerCase()));
-
-  const handleEdit = (entry: TrackerEntry) => {
-    setEditEntry(entry);
-    setEditMode(true);
-  };
-
-  const saveEdit = async () => {
-    if (!editEntry) return;
-    let result;
-    if (editEntry.id) {
-      result = await supabase
-        .from("master_tracker")
-        .update({
-          SOAP_Date: editEntry.SOAP_Date,
-          Recheck_Due: editEntry.Recheck_Due,
-          Case_Summary: editEntry.Case_Summary,
-          Name: editEntry.Name,
-          Location: editEntry.Location,
-          Full_SOAP: editEntry.Full_SOAP,
-        })
-        .eq("id", editEntry.id);
-    } else {
-      result = await supabase
-        .from("master_tracker")
-        .insert({
-          SOAP_Date: editEntry.SOAP_Date,
-          Recheck_Due: editEntry.Recheck_Due,
-          Case_Summary: editEntry.Case_Summary,
-          Name: editEntry.Name,
-          Location: editEntry.Location,
-          Full_SOAP: editEntry.Full_SOAP,
-        });
-    }
-
-    if (!result.error) {
-      toast.success("✅ Saved successfully!");
-      setEditMode(false);
-      fetchData();
-    } else {
-      toast.error("❌ Error saving changes.");
-    }
-  };
-
-  const toggleExpanded = (name: string) => {
-    setExpanded((prev) => ({ ...prev, [name]: !prev[name] }));
-  };
+  name.toLowerCase().startsWith(search.trim().toLowerCase())
+);
 
   return (
     <div className="min-h-screen py-12 px-6 bg-gray-950 text-white overflow-y-auto">
       <Toaster position="top-center" />
+
       <div className="max-w-2xl mx-auto mb-6 flex flex-wrap gap-4 items-center">
-      <button
+        <button
           onClick={() => {
-            setEditEntry({
-              Name: '',
-              Location: null,
-              SOAP_Date: '',
-              Recheck_Due: '',
-              Case_Summary: '',
-              Full_SOAP: ''
-            });
+            setEditEntry({ Name: '', Location: null, SOAP_Date: '', Recheck_Due: '', Case_Summary: '', Full_SOAP: '' });
             setEditMode(true);
           }}
-        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-      >
-        ➕ New SOAP Entry
-      </button>
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+        >
+          ➕ New SOAP Entry
+        </button>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="🔍 Search by name..."
           className="flex-grow px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white shadow"
         />
-                <button
+        <button
           onClick={() => {
             const broken = entries.filter(e => !e.SOAP_Date || !e.Name?.trim());
             console.warn("🧹 Cleaner Triggered — Broken Rows:", broken);
@@ -179,7 +127,8 @@ export default function TrackerPage() {
           }}
           className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
         >
-          🧹 Audit Missing Dates</button>
+          🧹 Audit Missing Dates
+        </button>
         <button
           onClick={async () => {
             const broken = entries.filter(e => (!e.SOAP_Date || e.SOAP_Date.trim() === '') && e.id);
@@ -187,11 +136,9 @@ export default function TrackerPage() {
               toast('✅ No missing SOAP_Date entries to fix.');
               return;
             }
-
             const updates = broken.map(row =>
               supabase.from('master_tracker').update({ SOAP_Date: '2025-01-01' }).eq('id', row.id)
             );
-
             await Promise.all(updates);
             toast.success(`🧼 Fixed ${broken.length} missing dates with placeholder.`);
             fetchData();
@@ -201,6 +148,7 @@ export default function TrackerPage() {
           🛠 Fix Missing Dates
         </button>
       </div>
+
       {loading ? (
         <p className="text-center text-gray-300">Loading...</p>
       ) : (
@@ -210,11 +158,12 @@ export default function TrackerPage() {
             const firstEntry = entries[0];
             const isOpen = expanded[name];
             return (
-              <div key={idx} className="bg-gray-800 rounded-xl shadow p-4">
+              <div key={idx}
+                className="bg-gray-800 rounded-xl shadow p-4">
                 <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-2xl font-semibold text-white">{entries[0].Name}</h2>
+                  <h2 className="text-2xl font-semibold text-white">{firstEntry.Name}</h2>
                   <button
-                    onClick={() => toggleExpanded(name)}
+                    onClick={() => setExpanded((prev) => ({ ...prev, [name]: !prev[name] }))}
                     className="text-sm text-teal-400 hover:underline"
                   >
                     {isOpen ? "🔼 Hide all SOAPs" : "🔽 Show all SOAPs"}
@@ -225,7 +174,10 @@ export default function TrackerPage() {
                     <div
                       key={i}
                       className="bg-gray-900 p-4 rounded-xl border border-gray-700 cursor-pointer hover:ring-2 hover:ring-teal-500"
-                      onClick={() => setSelected(entry)}
+                      onClick={() => {
+                        console.log("CLICKED ENTRY:", entry);
+                        setTimeout(() => setSelected(entry), 0);
+                      }}
                     >
                       <p className="text-sm text-gray-400">📅 {formatDate(entry.SOAP_Date)}</p>
                       <p className="text-sm text-gray-200 mt-1">{entry.Case_Summary}</p>
@@ -244,49 +196,28 @@ export default function TrackerPage() {
       )}
 
       {selected && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-6 rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-auto">
-            <h2 className="text-2xl font-bold mb-4 text-white">
-              {selected.Name} – Full SOAP
-            </h2>
-            <pre className="whitespace-pre-wrap text-sm text-gray-200 bg-gray-800 p-4 rounded-xl border border-gray-700">
-              {selected.Full_SOAP || "No SOAP available."}
-            </pre>
-            <div className="mt-6 flex justify-between">
-              <button
-                onClick={() => setSelected(null)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-              >
-                ✖️ Close
-              </button>
-              <button
-                onClick={() => handleEdit(selected)}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg"
-              >
-                ✏️ Edit
-              </button>
+        <div className="absolute top-0 left-0 right-0 bottom-0 z-50 bg-black/70 px-4 py-10 overflow-y-auto">
+          <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-3xl mx-auto flex flex-col max-h-screen overflow-hidden">
+            <div className="p-6 border-b border-gray-700">
+              <h2 className="text-2xl font-bold text-white">{selected.Name} – Full SOAP</h2>
             </div>
-          </div>
-        </div>
-      )}
-
-      {editMode && editEntry && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 overflow-auto">
-          <div className="bg-gray-900 p-6 rounded-2xl shadow-xl w-full max-w-xl">
-            <h2 className="text-2xl font-bold mb-4 text-white">
-              ✏️ Edit {editEntry.Name}
-            </h2>
-            <div className="space-y-4">
-              <input type="text" value={editEntry.Name || ''} onChange={(e) => setEditEntry({ ...editEntry, Name: e.target.value })} placeholder="Name" className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
-              <input type="text" value={editEntry.Location || ''} onChange={(e) => setEditEntry({ ...editEntry, Location: e.target.value })} placeholder="Location (optional)" className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
-              <input type="date" value={editEntry.SOAP_Date || ''} onChange={(e) => setEditEntry({ ...editEntry, SOAP_Date: e.target.value })} className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
-              <input type="date" value={editEntry.Recheck_Due || ''} onChange={(e) => setEditEntry({ ...editEntry, Recheck_Due: e.target.value })} className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
-              <textarea placeholder="Case Summary" value={editEntry.Case_Summary || ''} onChange={(e) => setEditEntry({ ...editEntry, Case_Summary: e.target.value })} rows={3} className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
-              <textarea placeholder="Full SOAP (optional)" value={editEntry.Full_SOAP || ''} onChange={(e) => setEditEntry({ ...editEntry, Full_SOAP: e.target.value })} rows={6} className="w-full p-2 rounded border border-gray-700 bg-gray-800 text-white" />
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                <pre className="whitespace-pre-wrap text-sm text-gray-200">
+                  {(selected?.Full_SOAP ?? '').trim().length > 0
+                    ? selected.Full_SOAP
+                    : 'No SOAP available.'}
+                </pre>
+              </div>
             </div>
-            <div className="mt-6 flex justify-between">
-              <button onClick={() => setEditMode(false)} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">✖️ Cancel</button>
-              <button onClick={saveEdit} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">💾 Save Changes</button>
+            <div className="p-6 border-t border-gray-700 flex justify-between">
+              <button onClick={() => setSelected(null)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">✖️ Close</button>
+              <button
+                onClick={() => {
+                  if (selected !== null) {
+                    handleEdit(selected as TrackerEntry);
+                  }
+                }} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">✏️ Edit</button>
             </div>
           </div>
         </div>
