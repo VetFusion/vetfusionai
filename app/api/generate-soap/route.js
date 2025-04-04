@@ -13,36 +13,51 @@ export async function POST(req) {
   console.log("📩 /api/generate-soap route hit");
 
   try {
+    const body = await req.json();
+    const {
+      signalment = "Unknown signalment",
+      history = "No relevant history provided.",
+      clinicalFindings = "No findings provided.",
+      weight = "N/A",
+      location = "Unknown",
+      planOverride = "",
+    } = body;
+
     const prompt = `
-    You are assisting a highly skilled veterinarian at Delta Rescue — a no-kill, care-for-life animal sanctuary handling advanced internal medicine, emergencies, geriatrics, and chronic disease.
-    
-    🧠 GOAL:
-    Create a new SOAP note that builds on the provided clinical inputs AND the patient’s historical SOAP notes. You are writing for real medical use — be smart, thorough, and medically sound.
-    
-    ✍️ FORMAT:
-    Return a complete SOAP note in this style:
-    - 🩺 Signalment
-    - 📚 History
-    - 🔍 Clinical Findings
-    - 🧠 Assessment (with differentials)
-    - 📝 Plan (including diagnostics, weight-based meds, recheck, education)
-    
-    🎯 INSTRUCTIONS:
-    - If input fields are vague, assume plausible clinical defaults.
-    - Expand shorthand terms like “ADR” or “HBC”.
-    - If weight is provided, use it to calculate mg/kg dosages.
-    - If previousSOAPs are provided, build on chronic history, meds, trends, or diagnostics.
-    
-    🩺 Signalment: {{signalment}}
-    📚 History: {{history}}
-    🔍 Clinical Findings: {{clinicalFindings}}
-    🐾 Patient Weight: {{weight}}
-    
-    Return a fully formatted Delta-style SOAP note.
-    `;
-    
+You are a medical AI assisting a veterinarian at Delta Rescue — a no-kill, care-for-life sanctuary handling complex internal medicine, geriatrics, and chronic disease.
+
+🎯 OBJECTIVE:
+Generate a complete SOAP note in Delta's style using the input below.
+
+🩺 Signalment: ${signalment}
+📚 History: ${history}
+🔍 Clinical Findings: ${clinicalFindings}
+⚖️ Weight: ${weight} kg
+📍 Location: ${location}
+📋 Plan Override: ${planOverride || "None"}
+
+💡 Instructions:
+- Expand on vague input (e.g., "ADR" → "Ain’t Doing Right")
+- Include a short **assessment** with differentials
+- Build a practical **plan**, including diagnostics, meds (with dosages if weight given), recheck, and technician notes
+- If planOverride is included, use that content but still format it cleanly
+- Write clearly using emojis, section headers, and line breaks
+
+💊 OUTPUT FORMAT:
+📌 **SOAP Note**
+- 🩺 Signalment
+- 📚 History
+- 🔍 Clinical Findings
+- 🧠 Assessment (with differentials)
+- 📝 Plan (diagnostics, meds, follow-up)
+- 🛠️ Tech Notes (fluid given, meds given today)
+- ✅ Summary (case status + recheck date if needed)
+
+Write as if going directly into a real patient record.
+`;
+
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
     });
