@@ -13,8 +13,34 @@ export async function POST(req) {
   console.log("📩 /api/generate-soap route hit");
 
   try {
-    const prompt = "Say hi 👋 from VetFusionAI!";
-
+    const prompt = `
+    You are assisting a highly skilled veterinarian at Delta Rescue — a no-kill, care-for-life animal sanctuary handling advanced internal medicine, emergencies, geriatrics, and chronic disease.
+    
+    🧠 GOAL:
+    Create a new SOAP note that builds on the provided clinical inputs AND the patient’s historical SOAP notes. You are writing for real medical use — be smart, thorough, and medically sound.
+    
+    ✍️ FORMAT:
+    Return a complete SOAP note in this style:
+    - 🩺 Signalment
+    - 📚 History
+    - 🔍 Clinical Findings
+    - 🧠 Assessment (with differentials)
+    - 📝 Plan (including diagnostics, weight-based meds, recheck, education)
+    
+    🎯 INSTRUCTIONS:
+    - If input fields are vague, assume plausible clinical defaults.
+    - Expand shorthand terms like “ADR” or “HBC”.
+    - If weight is provided, use it to calculate mg/kg dosages.
+    - If previousSOAPs are provided, build on chronic history, meds, trends, or diagnostics.
+    
+    🩺 Signalment: {{signalment}}
+    📚 History: {{history}}
+    🔍 Clinical Findings: {{clinicalFindings}}
+    🐾 Patient Weight: {{weight}}
+    
+    Return a fully formatted Delta-style SOAP note.
+    `;
+    
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
