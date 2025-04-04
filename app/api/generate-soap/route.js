@@ -1,3 +1,8 @@
+// ✅ Tell Vercel to use Node.js runtime (not Edge)
+export const config = {
+  runtime: 'nodejs',
+};
+
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
@@ -10,7 +15,15 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const { signalment, history, clinicalFindings, weight, previousSOAPs, location, planOverride } = body;
+    const {
+      signalment,
+      history,
+      clinicalFindings,
+      weight,
+      previousSOAPs,
+      location,
+      planOverride,
+    } = body;
 
     console.log("📥 Received Body:", body);
 
@@ -52,11 +65,18 @@ ${pastSOAPText}
 Return a fully formatted Delta-style SOAP note.
 `;
 
+    // ✅ Add timeout-safe OpenAI call
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // ⏱️ 10 seconds max
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     const soapNote = completion.choices[0].message.content;
     console.log("✅ SOAP note generated.");
