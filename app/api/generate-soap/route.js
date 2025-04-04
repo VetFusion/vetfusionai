@@ -6,15 +6,19 @@ const openai = new OpenAI({
 });
 
 export async function POST(req) {
-  const body = await req.json();
-  const { signalment, history, clinicalFindings, weight, previousSOAPs } = body;
+  console.log("📩 /api/generate-soap route hit");
 
-  // 🧠 Add past SOAPs to context
-  const pastSOAPText = previousSOAPs?.length
-    ? previousSOAPs.map((soap, i) => `#${i + 1}:\n${soap}`).join("\n\n")
-    : "None available.";
+  try {
+    const body = await req.json();
+    const { signalment, history, clinicalFindings, weight, previousSOAPs, location, planOverride } = body;
 
-  const prompt = `
+    console.log("📥 Received Body:", body);
+
+    const pastSOAPText = previousSOAPs?.length
+      ? previousSOAPs.map((soap, i) => `#${i + 1}:\n${soap}`).join("\n\n")
+      : "None available.";
+
+    const prompt = `
 You are assisting a highly skilled veterinarian at Delta Rescue — a no-kill, care-for-life animal sanctuary handling advanced internal medicine, emergencies, geriatrics, and chronic disease.
 
 🧠 GOAL:
@@ -26,13 +30,13 @@ Return a complete SOAP note in this style:
 - 📚 History
 - 🔍 Clinical Findings
 - 🧠 Assessment (with differentials)
-- 📝 Plan (including diagnostics, weight-based meds, recheck, owner education)
+- 📝 Plan (including diagnostics, weight-based meds, recheck, education)
 
 🎯 INSTRUCTIONS:
 - If input fields are vague, assume plausible clinical defaults.
 - Expand shorthand terms like “ADR” or “HBC”.
 - If weight is provided, use it to calculate mg/kg dosages.
-- If previousSOAPs are provided, build on the chronic history, trends, medications, or pending diagnostics.
+- If previousSOAPs are provided, build on chronic history, meds, trends, or diagnostics.
 
 🐾 Patient Weight: ${weight || "N/A"}
 
@@ -48,7 +52,6 @@ ${pastSOAPText}
 Return a fully formatted Delta-style SOAP note.
 `;
 
-  try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
@@ -56,9 +59,14 @@ Return a fully formatted Delta-style SOAP note.
     });
 
     const soapNote = completion.choices[0].message.content;
+    console.log("✅ SOAP note generated.");
     return NextResponse.json({ soapNote });
+
   } catch (error) {
-    console.error("AI generation failed:", error);
-    return NextResponse.json({ error: "AI generation failed" }, { status: 500 });
+    console.error("🛑 AI generation failed:", error);
+    return NextResponse.json(
+      { error: error.message || "AI generation failed" },
+      { status: 500 }
+    );
   }
 }

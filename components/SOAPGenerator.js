@@ -45,8 +45,8 @@ export default function SOAPGenerator() {
       ? (parseFloat(weight) / 2.20462).toFixed(2)
       : weight;
 
-    const response = await fetch("/api/generate-soap", {
-      method: "POST",
+      const response = await fetch(`${window.location.origin}/api/generate-soap`, {
+        method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         signalment,

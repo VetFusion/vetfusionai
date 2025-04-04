@@ -53,6 +53,7 @@ export default function LeoDailyReport() {
       <div className="flex justify-center gap-4 mb-10">
         <button
           onClick={() => {
+            // @ts-ignore
             import("html2pdf.js").then((html2pdf) => {
               const report = document.body;
               html2pdf
