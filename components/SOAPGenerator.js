@@ -9,7 +9,7 @@ const fetchPreviousSOAPs = async (animalName) => {
   const { data, error } = await supabase
     .from("master_tracker")
     .select("Full_SOAP")
-    .ilike("Name", name.trim())
+    .ilike("Name", animalName.trim())
     .order("SOAP_Date", { ascending: false })
     .limit(3);
 
@@ -35,42 +35,49 @@ export default function SOAPGenerator() {
   const [noteHistory, setNoteHistory] = useState([]);
   const [useHistory, setUseHistory] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState("");
+  const [model, setModel] = useState("gpt-3.5-turbo");
 
   const generateSOAP = async () => {
     setLoading(true);
     setGeneratedSOAP("🧠 Talking to VetFusionAI... Please wait.");
-// const previousSOAPs = useHistory ? await fetchPreviousSOAPs(animalName) : [];
-const previousSOAPs = []; // 🔌 Bypassing Supabase temporarily
 
     const weightInKg = weight?.toLowerCase().includes("lb")
       ? (parseFloat(weight) / 2.20462).toFixed(2)
       : weight;
 
+    try {
       const response = await fetch(`${window.location.origin}/api/generate-soap`, {
         method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        signalment,
-        history,
-        clinicalFindings,
-        weight: weightInKg,
-        previousSOAPs,
-        location,
-        planOverride,
-      }),
-    });
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          signalment,
+          history,
+          clinicalFindings,
+          weight: weightInKg,
+          location,
+          planOverride,
+          animalName,
+          model,
+          useHistory,
+        }),
+      });
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`❌ Failed to fetch SOAP: ${text}`);
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`❌ Failed to fetch SOAP: ${text}`);
+      }
+
+      const data = await response.json();
+      setGeneratedSOAP(data.soapNote);
+
+      setNoteHistory((prevHistory) => [
+        { timestamp: new Date().toLocaleString(), note: data.soapNote },
+        ...prevHistory,
+      ]);
+    } catch (err) {
+      console.error("❌ Error generating SOAP:", err);
+      toast.error("🚨 Failed to generate SOAP. See console for details.");
     }
-    const data = await response.json();
-        setGeneratedSOAP(data.soapNote);
-
-    setNoteHistory((prevHistory) => [
-      { timestamp: new Date().toLocaleString(), note: data.soapNote },
-      ...prevHistory,
-    ]);
 
     setLoading(false);
     setSaveSuccess("");
@@ -81,48 +88,46 @@ const previousSOAPs = []; // 🔌 Bypassing Supabase temporarily
       const caseSummary =
         generatedSOAP.match(/🧠 \*\*Assessment\*\*:\n(.*?)(\n|\.|$)/)?.[1]?.trim() ||
         "No summary available.";
-  
+
       const planMatch =
         generatedSOAP.match(/📝 \*\*Plan\*\*:\n([\s\S]*?)(?=\n[A-Z]|\n\*\*|$)/);
       const extractedPlan = planMatch ? planMatch[1].trim() : "";
       const currentMeds = planOverride || extractedPlan || "No plan available.";
-  
-      const today = new Date().toISOString().split("T")[0]; // ✅ formatted date string
-      const recheckDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days later
-      .toISOString()
-      .split("T")[0];
-    
+
+      const today = new Date().toISOString().split("T")[0];
+      const recheckDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
       const payload = {
         Name: animalName?.trim() || "Unknown",
         Location: location?.trim() || "Unspecified",
-        SOAP_Date: today, // ✅ valid formatted date
+        SOAP_Date: today,
         Weight: weight?.toString().trim() || "",
         Species: "",
         Status: "",
-        Recheck_Due: recheckDue, // ✅ ← THIS LINE FIXES THE ERROR
+        Recheck_Due: recheckDue,
         Current_Meds: currentMeds.slice(0, 2999),
         Case_Summary: caseSummary.slice(0, 999),
         Full_SOAP: generatedSOAP.slice(0, 9999),
       };
-      
-  
+
       console.log("📦 Supabase Insert Payload:", payload);
 
       const { error } = await supabase.from("master_tracker").insert([payload]);
-      
+
       if (error) {
         console.error("🛑 Supabase insert error:", error);
         toast.error(`❌ Error saving to Tracker: ${error.message}`);
       } else {
         toast.success("✅ SOAP saved to tracker!");
-        setSaveSuccess(""); // Optional: clear older messages
+        setSaveSuccess("");
       }
-      } catch (err) {
-        console.error("🔥 Unexpected save error:", err);
-        toast.error("🔥 Something went wrong while saving.");
-      }
-      };      
-  
+    } catch (err) {
+      console.error("🔥 Unexpected save error:", err);
+      toast.error("🔥 Something went wrong while saving.");
+    }
+  };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(generatedSOAP);
@@ -135,23 +140,23 @@ const previousSOAPs = []; // 🔌 Bypassing Supabase temporarily
     doc.text(lines, 10, 10);
     doc.save("SOAP-Note.pdf");
   };
+
   const fetchAnimalDetails = async (name) => {
     if (!name) return;
-  
     console.log("🔍 Looking up:", name);
-  
+
     const { data, error } = await supabase
       .from("master_tracker")
       .select("Location, Weight")
-      .ilike("Name", name.trim()) // 🔁 CASE-INSENSITIVE MATCH
+      .ilike("Name", name.trim())
       .order("SOAP_Date", { ascending: false })
       .limit(1);
-  
+
     if (error) {
       console.error("🛑 Supabase error:", error);
       return;
     }
-  
+
     if (data && data.length > 0) {
       const latest = data[0];
       if (latest.Location) setLocation(latest.Location);
@@ -161,8 +166,7 @@ const previousSOAPs = []; // 🔌 Bypassing Supabase temporarily
       console.log("❌ No matching animal found for:", name);
     }
   };
-  
-  
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-teal-50 to-blue-100 dark:from-gray-900 dark:to-gray-950 py-8 px-4">
       <h1 className="text-5xl font-bold mb-8 text-gray-900 dark:text-white">🐾 VetFusionAI</h1>
@@ -171,22 +175,21 @@ const previousSOAPs = []; // 🔌 Bypassing Supabase temporarily
       </p>
 
       <div className="w-full max-w-2xl bg-white/30 dark:bg-gray-800/40 shadow-xl rounded-xl backdrop-blur-md p-6 space-y-4">
-      <input
-  className="w-full p-3 rounded-lg"
-  placeholder="Animal Name"
-  value={animalName}
-  onChange={async (e) => {
-    const name = e.target.value;
-    setAnimalName(name);
-    await fetchAnimalDetails(name);
-  }}
-/>
+        <input className="w-full p-3 rounded-lg" placeholder="Animal Name" value={animalName} onChange={async (e) => { const name = e.target.value; setAnimalName(name); await fetchAnimalDetails(name); }} />
         <input className="w-full p-3 rounded-lg" placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
         <input className="w-full p-3 rounded-lg" placeholder="Weight" value={weight} onChange={(e) => setWeight(e.target.value)} />
         <input className="w-full p-3 rounded-lg" placeholder="🩺 Signalment" value={signalment} onChange={(e) => setSignalment(e.target.value)} />
         <textarea className="w-full p-3 rounded-lg" placeholder="📚 History" value={history} onChange={(e) => setHistory(e.target.value)} />
         <textarea className="w-full p-3 rounded-lg" placeholder="🔍 Clinical Findings" value={clinicalFindings} onChange={(e) => setClinicalFindings(e.target.value)} />
         <textarea className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-black dark:text-white" placeholder="📝 Plan (manual or AI-generated)" value={planOverride} onChange={(e) => setPlanOverride(e.target.value)} rows={6} />
+
+        <div className="mb-3">
+          <label className="block text-sm font-medium mb-1">🤖 AI Model:</label>
+          <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600">
+            <option value="gpt-3.5-turbo">GPT-3.5 (Fast)</option>
+            <option value="gpt-4">GPT-4 (Deeper Reasoning)</option>
+          </select>
+        </div>
 
         <div className="flex items-center space-x-3">
           <input type="checkbox" id="useHistory" checked={useHistory} onChange={(e) => setUseHistory(e.target.checked)} className="form-checkbox h-5 w-5 text-blue-600" />
