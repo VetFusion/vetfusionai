@@ -1,6 +1,8 @@
+// ✅ FULL Tracker Page with working router + profile links
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { format, isBefore, addDays } from "date-fns";
 import toast, { Toaster } from "react-hot-toast";
@@ -17,13 +19,16 @@ interface TrackerEntry {
   Recheck_Due: string | null;
   Case_Summary: string | null;
   Full_SOAP: string | null;
+  Weight?: string | null;
 }
 
 export default function TrackerPage() {
+  const router = useRouter();
   const handleEdit = (entry: TrackerEntry) => {
-    setEditEntry(entry);
+    setEditEntry({ ...entry });
     setEditMode(true);
   };
+
   const [entries, setEntries] = useState<TrackerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -64,6 +69,28 @@ export default function TrackerPage() {
     setLoading(false);
   };
 
+  const saveChanges = async () => {
+    if (!editEntry?.id) return;
+    const { error } = await supabase
+      .from("master_tracker")
+      .update({
+        Location: editEntry.Location,
+        Weight: editEntry.Weight,
+        Recheck_Due: editEntry.Recheck_Due,
+        Case_Summary: editEntry.Case_Summary,
+      })
+      .eq("id", editEntry.id);
+
+    if (error) {
+      toast.error("❌ Failed to save changes");
+      console.error(error);
+    } else {
+      toast.success("✅ Changes saved");
+      setEditMode(false);
+      fetchData();
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -84,7 +111,7 @@ export default function TrackerPage() {
     if (!d || isNaN(Date.parse(d))) return "text-gray-400";
     const date = new Date(d);
     if (isBefore(date, new Date())) return "text-red-600 dark:text-red-400";
-    if (isBefore(date, addDays(new Date(), 7))) return "text-yellow-600 dark:text-yellow-400";
+    if (isBefore(date, addDays(new Date(), 3))) return "text-yellow-600 dark:text-yellow-400";
     return "text-green-600 dark:text-green-400";
   };
 
@@ -96,57 +123,20 @@ export default function TrackerPage() {
   }, {});
 
   const filteredNames = Object.keys(groupedEntries).filter((name) =>
-  name.toLowerCase().startsWith(search.trim().toLowerCase())
-);
+    name.toLowerCase().startsWith(search.trim().toLowerCase())
+  );
 
   return (
     <div className="min-h-screen py-12 px-6 bg-gray-950 text-white overflow-y-auto">
       <Toaster position="top-center" />
 
       <div className="max-w-2xl mx-auto mb-6 flex flex-wrap gap-4 items-center">
-        <button
-          onClick={() => {
-            setEditEntry({ Name: '', Location: null, SOAP_Date: '', Recheck_Due: '', Case_Summary: '', Full_SOAP: '' });
-            setEditMode(true);
-          }}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-        >
-          ➕ New SOAP Entry
-        </button>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="🔍 Search by name..."
           className="flex-grow px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white shadow"
         />
-        <button
-          onClick={() => {
-            const broken = entries.filter(e => !e.SOAP_Date || !e.Name?.trim());
-            console.warn("🧹 Cleaner Triggered — Broken Rows:", broken);
-            toast(`🧼 Found ${broken.length} broken rows. Check console.`, { icon: '🧹' });
-          }}
-          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
-        >
-          🧹 Audit Missing Dates
-        </button>
-        <button
-          onClick={async () => {
-            const broken = entries.filter(e => (!e.SOAP_Date || e.SOAP_Date.trim() === '') && e.id);
-            if (broken.length === 0) {
-              toast('✅ No missing SOAP_Date entries to fix.');
-              return;
-            }
-            const updates = broken.map(row =>
-              supabase.from('master_tracker').update({ SOAP_Date: '2025-01-01' }).eq('id', row.id)
-            );
-            await Promise.all(updates);
-            toast.success(`🧼 Fixed ${broken.length} missing dates with placeholder.`);
-            fetchData();
-          }}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-        >
-          🛠 Fix Missing Dates
-        </button>
       </div>
 
       {loading ? (
@@ -158,10 +148,14 @@ export default function TrackerPage() {
             const firstEntry = entries[0];
             const isOpen = expanded[name];
             return (
-              <div key={idx}
-                className="bg-gray-800 rounded-xl shadow p-4">
+              <div key={idx} className="bg-gray-800 rounded-xl shadow p-4">
                 <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-2xl font-semibold text-white">{firstEntry.Name}</h2>
+                  <button
+                    onClick={() => router.push(`/profile/${firstEntry.Name.toLowerCase()}`)}
+                    className="text-2xl font-semibold text-teal-400 hover:underline"
+                  >
+                    {firstEntry.Name}
+                  </button>
                   <button
                     onClick={() => setExpanded((prev) => ({ ...prev, [name]: !prev[name] }))}
                     className="text-sm text-teal-400 hover:underline"
@@ -174,10 +168,7 @@ export default function TrackerPage() {
                     <div
                       key={i}
                       className="bg-gray-900 p-4 rounded-xl border border-gray-700 cursor-pointer hover:ring-2 hover:ring-teal-500"
-                      onClick={() => {
-                        console.log("CLICKED ENTRY:", entry);
-                        setTimeout(() => setSelected(entry), 0);
-                      }}
+                      onClick={() => setSelected(entry)}
                     >
                       <p className="text-sm text-gray-400">📅 {formatDate(entry.SOAP_Date)}</p>
                       <p className="text-sm text-gray-200 mt-1">{entry.Case_Summary}</p>
@@ -212,12 +203,32 @@ export default function TrackerPage() {
             </div>
             <div className="p-6 border-t border-gray-700 flex justify-between">
               <button onClick={() => setSelected(null)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">✖️ Close</button>
-              <button
-                onClick={() => {
-                  if (selected !== null) {
-                    handleEdit(selected as TrackerEntry);
-                  }
-                }} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">✏️ Edit</button>
+              <button onClick={() => handleEdit(selected)} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">✏️ Edit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editMode && editEntry && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex justify-center items-center">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-xl w-full max-w-xl p-6 space-y-4">
+            <h2 className="text-xl font-bold text-white mb-2">✏️ Edit Entry – {editEntry.Name}</h2>
+            <label className="block text-sm">📍 Location:
+              <input className="w-full mt-1 p-2 rounded bg-gray-800 text-white border border-gray-600" value={editEntry.Location || ''} onChange={(e) => setEditEntry({ ...editEntry, Location: e.target.value })} />
+            </label>
+            <label className="block text-sm">⚖️ Weight:
+              <input className="w-full mt-1 p-2 rounded bg-gray-800 text-white border border-gray-600" value={editEntry.Weight || ''} onChange={(e) => setEditEntry({ ...editEntry, Weight: e.target.value })} />
+            </label>
+            <label className="block text-sm">📆 Recheck Due:
+              <input type="date" className="w-full mt-1 p-2 rounded bg-gray-800 text-white border border-gray-600" value={editEntry.Recheck_Due || ''} onChange={(e) => setEditEntry({ ...editEntry, Recheck_Due: e.target.value })} />
+            </label>
+            <label className="block text-sm">🧠 Case Summary:
+              <textarea rows={4} className="w-full mt-1 p-2 rounded bg-gray-800 text-white border border-gray-600" value={editEntry.Case_Summary || ''} onChange={(e) => setEditEntry({ ...editEntry, Case_Summary: e.target.value })} />
+            </label>
+
+            <div className="flex justify-end gap-3 mt-4">
+              <button onClick={() => setEditMode(false)} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">Cancel</button>
+              <button onClick={saveChanges} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">💾 Save Changes</button>
             </div>
           </div>
         </div>
