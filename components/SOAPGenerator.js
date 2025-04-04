@@ -39,7 +39,8 @@ export default function SOAPGenerator() {
   const generateSOAP = async () => {
     setLoading(true);
     setGeneratedSOAP("🧠 Talking to VetFusionAI... Please wait.");
-    const previousSOAPs = useHistory ? await fetchPreviousSOAPs(animalName) : [];
+// const previousSOAPs = useHistory ? await fetchPreviousSOAPs(animalName) : [];
+const previousSOAPs = []; // 🔌 Bypassing Supabase temporarily
 
     const weightInKg = weight?.toLowerCase().includes("lb")
       ? (parseFloat(weight) / 2.20462).toFixed(2)
@@ -59,8 +60,12 @@ export default function SOAPGenerator() {
       }),
     });
 
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`❌ Failed to fetch SOAP: ${text}`);
+    }
     const data = await response.json();
-    setGeneratedSOAP(data.soapNote);
+        setGeneratedSOAP(data.soapNote);
 
     setNoteHistory((prevHistory) => [
       { timestamp: new Date().toLocaleString(), note: data.soapNote },
