@@ -65,18 +65,11 @@ ${pastSOAPText}
 Return a fully formatted Delta-style SOAP note.
 `;
 
-    // ✅ Add timeout-safe OpenAI call
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // ⏱️ 10 seconds max
-
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      signal: controller.signal,
     });
-
-    clearTimeout(timeout);
 
     const soapNote = completion.choices[0].message.content;
     console.log("✅ SOAP note generated.");
