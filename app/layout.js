@@ -21,7 +21,7 @@ export const metadata = {
   openGraph: {
     title: "VetFusionAI - AI-Powered Veterinary SOAP Notes",
     description:
-      "Building a living, intelligent medical memory for every animal, helping you think smarter, act faster, and never miss a beat.",
+      "Your AI-powered SOAP archive — built to follow you and your patients anywhere.",
     url: "https://vetfusionai.com",
     siteName: "VetFusionAI",
     images: [
@@ -38,7 +38,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "VetFusionAI - AI Veterinary SOAP Notes",
     description:
-      "Building a living, intelligent medical memory for every animal, helping you think smarter, act faster, and never miss a beat.",
+      "Your AI-powered SOAP archive — built to follow you and your patients anywhere.",
     images: ["https://vetfusionai.com/logo.webp"],
   },
 };
@@ -47,7 +47,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`dark ${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
       <head>
@@ -74,10 +74,9 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className="font-sans antialiased bg-white text-black dark:bg-gray-900 dark:text-white transition-all duration-300">
-  <Toaster position="top-center" />  {/* ✅ Toast System Hooked Up */}
-  {children}
-</body>
-
+        <Toaster position="top-center" />
+        {children}
+      </body>
     </html>
   );
 }
