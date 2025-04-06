@@ -1,25 +1,10 @@
+// ✅ SOAP Generator with Context Fetching, Improved Styling, Autofocus, and Smart Prompts
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
-
-const fetchPreviousSOAPs = async (animalName) => {
-  const { data, error } = await supabase
-    .from("master_tracker")
-    .select("Full_SOAP")
-    .ilike("Name", animalName.trim())
-    .order("SOAP_Date", { ascending: false })
-    .limit(3);
-
-  if (error) {
-    console.error("Error fetching previous SOAPs:", error);
-    return [];
-  }
-
-  return data.map((entry) => entry.Full_SOAP);
-};
 
 export default function SOAPGenerator() {
   const [animalName, setAnimalName] = useState("");
@@ -37,6 +22,12 @@ export default function SOAPGenerator() {
   const [saveSuccess, setSaveSuccess] = useState("");
   const [model, setModel] = useState("gpt-3.5-turbo");
 
+  const nameInputRef = useRef(null);
+
+  useEffect(() => {
+    nameInputRef.current?.focus();
+  }, []);
+
   const generateSOAP = async () => {
     setLoading(true);
     setGeneratedSOAP("🧠 Talking to VetFusionAI... Please wait.");
@@ -45,8 +36,20 @@ export default function SOAPGenerator() {
       ? (parseFloat(weight) / 2.20462).toFixed(2)
       : weight;
 
+    let previousSOAPs = [];
+    if (useHistory && animalName.trim()) {
+      const { data } = await supabase
+        .from("master_tracker")
+        .select("Full_SOAP")
+        .ilike("Name", animalName.trim())
+        .order("SOAP_Date", { ascending: false })
+        .limit(3);
+
+      previousSOAPs = data?.map((d) => d.Full_SOAP) || [];
+    }
+
     try {
-      const response = await fetch(`${window.location.origin}/api/generate-soap`, {
+      const response = await fetch("/api/generate-soap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -59,6 +62,7 @@ export default function SOAPGenerator() {
           animalName,
           model,
           useHistory,
+          previousSOAPs,
         }),
       });
 
@@ -69,10 +73,9 @@ export default function SOAPGenerator() {
 
       const data = await response.json();
       setGeneratedSOAP(data.soapNote);
-
-      setNoteHistory((prevHistory) => [
+      setNoteHistory((prev) => [
         { timestamp: new Date().toLocaleString(), note: data.soapNote },
-        ...prevHistory,
+        ...prev,
       ]);
     } catch (err) {
       console.error("❌ Error generating SOAP:", err);
@@ -112,26 +115,38 @@ export default function SOAPGenerator() {
         Full_SOAP: generatedSOAP.slice(0, 9999),
       };
 
-      console.log("📦 Supabase Insert Payload:", payload);
-
       const { error } = await supabase.from("master_tracker").insert([payload]);
 
       if (error) {
-        console.error("🛑 Supabase insert error:", error);
         toast.error(`❌ Error saving to Tracker: ${error.message}`);
       } else {
         toast.success("✅ SOAP saved to tracker!");
         setSaveSuccess("");
       }
     } catch (err) {
-      console.error("🔥 Unexpected save error:", err);
       toast.error("🔥 Something went wrong while saving.");
+    }
+  };
+
+  const fetchAnimalDetails = async (name) => {
+    if (!name) return;
+    const { data } = await supabase
+      .from("master_tracker")
+      .select("Location, Weight")
+      .ilike("Name", name.trim())
+      .order("SOAP_Date", { ascending: false })
+      .limit(1);
+
+    if (data && data.length > 0) {
+      const latest = data[0];
+      if (latest.Location) setLocation(latest.Location);
+      if (latest.Weight) setWeight(latest.Weight);
     }
   };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(generatedSOAP);
-    alert("SOAP Note copied to clipboard!");
+    toast.success("📋 SOAP copied to clipboard");
   };
 
   const saveAsPDF = () => {
@@ -139,32 +154,6 @@ export default function SOAPGenerator() {
     const lines = doc.splitTextToSize(generatedSOAP, 180);
     doc.text(lines, 10, 10);
     doc.save("SOAP-Note.pdf");
-  };
-
-  const fetchAnimalDetails = async (name) => {
-    if (!name) return;
-    console.log("🔍 Looking up:", name);
-
-    const { data, error } = await supabase
-      .from("master_tracker")
-      .select("Location, Weight")
-      .ilike("Name", name.trim())
-      .order("SOAP_Date", { ascending: false })
-      .limit(1);
-
-    if (error) {
-      console.error("🛑 Supabase error:", error);
-      return;
-    }
-
-    if (data && data.length > 0) {
-      const latest = data[0];
-      if (latest.Location) setLocation(latest.Location);
-      if (latest.Weight) setWeight(latest.Weight);
-      console.log("📥 Auto-filled animal details:", latest);
-    } else {
-      console.log("❌ No matching animal found for:", name);
-    }
   };
 
   return (
@@ -175,17 +164,17 @@ export default function SOAPGenerator() {
       </p>
 
       <div className="w-full max-w-2xl bg-white/30 dark:bg-gray-800/40 shadow-xl rounded-xl backdrop-blur-md p-6 space-y-4">
-        <input className="w-full p-3 rounded-lg" placeholder="Animal Name" value={animalName} onChange={async (e) => { const name = e.target.value; setAnimalName(name); await fetchAnimalDetails(name); }} />
-        <input className="w-full p-3 rounded-lg" placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
-        <input className="w-full p-3 rounded-lg" placeholder="Weight" value={weight} onChange={(e) => setWeight(e.target.value)} />
-        <input className="w-full p-3 rounded-lg" placeholder="🩺 Signalment" value={signalment} onChange={(e) => setSignalment(e.target.value)} />
-        <textarea className="w-full p-3 rounded-lg" placeholder="📚 History" value={history} onChange={(e) => setHistory(e.target.value)} />
-        <textarea className="w-full p-3 rounded-lg" placeholder="🔍 Clinical Findings" value={clinicalFindings} onChange={(e) => setClinicalFindings(e.target.value)} />
-        <textarea className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-black dark:text-white" placeholder="📝 Plan (manual or AI-generated)" value={planOverride} onChange={(e) => setPlanOverride(e.target.value)} rows={6} />
+        <input ref={nameInputRef} className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="Animal Name (e.g., Wilbur)" value={animalName} onChange={async (e) => { const name = e.target.value; setAnimalName(name); await fetchAnimalDetails(name); }} />
+        <input className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="Location (e.g., KR)" value={location} onChange={(e) => setLocation(e.target.value)} />
+        <input className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="Weight (e.g., 9.3 kg or 20.5 lb)" value={weight} onChange={(e) => setWeight(e.target.value)} />
+        <input className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="🩺 Signalment (e.g., 3 y/o MN Lab mix)" value={signalment} onChange={(e) => setSignalment(e.target.value)} />
+        <textarea className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="📚 Brief history or reason for visit" value={history} onChange={(e) => setHistory(e.target.value)} />
+        <textarea className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="🔍 Key findings: PE, labs, imaging, etc." value={clinicalFindings} onChange={(e) => setClinicalFindings(e.target.value)} />
+        <textarea className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="📝 Plan: meds, rechecks, instructions..." value={planOverride} onChange={(e) => setPlanOverride(e.target.value)} rows={6} />
 
         <div className="mb-3">
-          <label className="block text-sm font-medium mb-1">🤖 AI Model:</label>
-          <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600">
+          <label className="block text-sm font-medium mb-1 text-white">🤖 AI Model:</label>
+          <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full p-2 rounded-lg border border-gray-700 bg-gray-800 text-white">
             <option value="gpt-3.5-turbo">GPT-3.5 (Fast)</option>
             <option value="gpt-4">GPT-4 (Deeper Reasoning)</option>
           </select>
@@ -193,7 +182,7 @@ export default function SOAPGenerator() {
 
         <div className="flex items-center space-x-3">
           <input type="checkbox" id="useHistory" checked={useHistory} onChange={(e) => setUseHistory(e.target.checked)} className="form-checkbox h-5 w-5 text-blue-600" />
-          <label htmlFor="useHistory" className="text-sm">🔁 Use Previous SOAPs for Context</label>
+          <label htmlFor="useHistory" className="text-sm text-white">🔁 Use Previous SOAPs for Context</label>
         </div>
 
         <button className="w-full py-3 bg-teal-500 text-white rounded-lg font-semibold" onClick={generateSOAP} disabled={loading}>
