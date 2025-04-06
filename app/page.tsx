@@ -82,7 +82,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white flex flex-col items-center justify-start relative overflow-hidden">
       {/* Starry Background */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute animate-[pulse_12s_ease-in-out_infinite] top-[20%] left-[10%] w-12 h-12 text-4xl opacity-10">🌟</div>
@@ -93,7 +93,7 @@ export default function HomePage() {
       </div>
 
       {/* HERO SECTION */}
-      <div className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center text-center px-4 py-20">
+      <div className="relative z-10 w-full flex flex-col items-center justify-center text-center px-4 py-16">
         <Image
           src="/data/vetfusion-logo.png"
           alt="VetFusionAI Logo"
@@ -140,7 +140,7 @@ export default function HomePage() {
       </div>
 
       {/* MINI CASE SNAPSHOT */}
-      <div className="relative z-10 w-full max-w-4xl px-4 py-10 text-center animate-fade-in-up delay-400">
+      <div className="relative z-10 w-full max-w-4xl px-4 pb-20 text-center animate-fade-in-up delay-400">
         <h2 className="text-2xl font-semibold text-white mb-4">⚡ Mini Case Snapshot</h2>
         <div className="bg-gray-800 rounded-xl p-6 shadow-md text-left text-sm text-gray-200 min-h-[200px] overflow-hidden relative">
           {mounted && <RotatingCase />}
