@@ -1,4 +1,4 @@
-// ✅ Updated HomePage – Removed Logo and Fixed Extra Square
+// ✅ Cleaned Homepage – Added Testimonials + Entrance Animations
 "use client";
 
 import Link from "next/link";
@@ -68,7 +68,6 @@ export default function HomePage() {
   useEffect(() => {
     setYear(new Date().getFullYear());
     setMounted(true);
-    document.documentElement.classList.add("dark");
   }, []);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -89,59 +88,54 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white flex flex-col items-center justify-start relative overflow-hidden">
-      {/* Starry Background */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        {["🌟", "🌠", "✨", "💫", "🌌"].map((star, idx) => (
-          <div
-            key={idx}
-            className={`absolute text-4xl opacity-10 animate-[pulse_${10 + idx * 2}s_ease-in-out_infinite]`}
-            style={{
-              top: `${10 + idx * 10}%`,
-              left: idx % 2 === 0 ? `${15 + idx * 5}%` : "auto",
-              right: idx % 2 !== 0 ? `${10 + idx * 3}%` : "auto",
-              bottom: idx % 3 === 0 ? `${10 + idx * 4}%` : "auto",
-            }}
-          >
-            {star}
-          </div>
-        ))}
-      </div>
-
       {/* HERO SECTION */}
-      <div className="relative z-10 flex flex-col items-center justify-center py-20 px-6 text-center">
-        <h1 className="text-5xl md:text-7xl font-extrabold text-teal-400 drop-shadow mb-4 animate-fade-in-up">
-          VetFusionAI
-        </h1>
-        <p className="text-xl md:text-2xl text-gray-300 max-w-2xl animate-fade-in-up delay-100 mb-8">
+      <div className="relative z-10 flex flex-col items-center justify-center py-20 px-6 text-center animate-fade-in">
+        <h1 className="text-5xl md:text-7xl font-extrabold text-teal-400 drop-shadow mb-4">VetFusionAI</h1>
+        <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mb-8">
           AI SOAPs for fast-paced medicine. Built for ER shifts, critical rechecks, and never missing a detail.
         </p>
 
         {/* Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-4xl animate-fade-in-up delay-200">
-          {["/soap", "/tracker", "/relief", "/rescue"].map((href, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-4xl">
+          {[
+            ["/soap", "📝 SOAP Generator"],
+            ["/tracker", "📊 Tracker"],
+            ["/relief", "🧳 Relief Mode"],
+            ["/rescue", "🐾 Rescue View"]
+          ].map(([href, label]) => (
             <Link key={href} href={href}>
               <button className="w-full bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition duration-300 hover:scale-105">
-                {[
-                  "📝 SOAP Generator",
-                  "📊 Tracker",
-                  "🧳 Relief Mode",
-                  "🐾 Rescue View",
-                ][i]}
+                {label}
               </button>
             </Link>
           ))}
         </div>
 
-        <p className="mt-10 text-sm text-teal-300 animate-fade-in-up delay-300">
+        <p className="mt-10 text-sm text-teal-300">
           🩺 Real-time clarity for critical patients. Trusted by ER vets, shift docs, and mobile medics.
         </p>
       </div>
 
       {/* MINI CASE SNAPSHOT */}
-      <div className="relative z-10 w-full max-w-4xl px-4 pb-16 text-center animate-fade-in-up delay-400">
+      <div className="relative z-10 w-full max-w-4xl px-4 pt-0 pb-10 text-center">
         <h2 className="text-2xl font-semibold text-white mb-4">⚡ Mini Case Snapshot</h2>
         <div className="bg-gray-800 rounded-xl p-6 shadow-md text-left text-sm text-gray-200 min-h-[200px] overflow-hidden relative">
           {mounted && <RotatingCase />}
+        </div>
+      </div>
+
+      {/* TESTIMONIALS */}
+      <div className="relative z-10 w-full max-w-4xl px-4 py-12 text-center">
+        <h2 className="text-3xl font-bold text-white mb-6">💬 What Vets Are Saying</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <blockquote className="bg-gray-800 p-6 rounded-xl shadow-md text-sm text-gray-200">
+            <p>“VetFusionAI makes writing SOAPs faster and smarter. I can’t imagine going back.”</p>
+            <footer className="mt-3 text-teal-400">— Dr. Nguyen, ER Vet</footer>
+          </blockquote>
+          <blockquote className="bg-gray-800 p-6 rounded-xl shadow-md text-sm text-gray-200">
+            <p>“It’s like having a medical scribe that knows internal medicine. Game changer.”</p>
+            <footer className="mt-3 text-teal-400">— Dr. Ramirez, Relief DVM</footer>
+          </blockquote>
         </div>
       </div>
 
@@ -158,7 +152,7 @@ export default function HomePage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Your email address"
-            className="w-full sm:w-auto flex-1 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="w-full sm:max-w-xs flex-1 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <button
             type="submit"
