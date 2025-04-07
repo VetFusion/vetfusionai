@@ -20,13 +20,24 @@ export default function SOAPGenerator() {
   const [noteHistory, setNoteHistory] = useState([]);
   const [useHistory, setUseHistory] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState("");
-  const [model, setModel] = useState("gpt-3.5-turbo");
+  const [suggestions, setSuggestions] = useState([]);
 
   const nameInputRef = useRef(null);
 
   useEffect(() => {
     nameInputRef.current?.focus();
   }, []);
+
+  const fetchSuggestions = async (partial) => {
+    const { data } = await supabase
+      .from("master_tracker")
+      .select("Name")
+      .ilike("Name", `%${partial}%`)
+      .limit(5);
+
+    const uniqueNames = Array.from(new Set((data || []).map((d) => d.Name?.trim())));
+    setSuggestions(uniqueNames);
+  };
 
   const fetchAnimalDetails = async (name) => {
     if (!name) return;
@@ -82,7 +93,7 @@ export default function SOAPGenerator() {
           location,
           planOverride,
           animalName,
-          model,
+          model: "gpt-3.5-turbo",
           useHistory,
           previousSOAPs,
         }),
@@ -165,21 +176,47 @@ export default function SOAPGenerator() {
       </p>
 
       <div className="w-full max-w-2xl bg-white/30 dark:bg-gray-800/40 shadow-xl rounded-xl backdrop-blur-md p-6 space-y-4">
-        <input ref={nameInputRef} className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="Animal Name (e.g., Wilbur)" value={animalName} onChange={async (e) => { const name = e.target.value; setAnimalName(name); await fetchAnimalDetails(name); }} />
+        <input
+          ref={nameInputRef}
+          className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400"
+          placeholder="Animal Name (e.g., Wilbur)"
+          value={animalName}
+          onChange={async (e) => {
+            const name = e.target.value;
+            setAnimalName(name);
+            await fetchAnimalDetails(name);
+            await fetchSuggestions(name);
+          }}
+        />
+
+        {suggestions.length > 0 && (
+          <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-md shadow mb-2">
+            <p className="text-xs text-gray-400 mb-1">Suggested Matches:</p>
+            <ul className="flex flex-wrap gap-2">
+              {suggestions.map((s, i) => (
+                <li key={i}>
+                  <button
+                    onClick={async () => {
+                      setAnimalName(s);
+                      await fetchAnimalDetails(s);
+                      setSuggestions([]);
+                    }}
+                    className="text-xs px-3 py-1 rounded-full bg-teal-600 text-white hover:bg-teal-500"
+                  >
+                    {s}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <input className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="Location (e.g., ICU)" value={location} onChange={(e) => setLocation(e.target.value)} />
         <input className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="Weight (e.g., 9.3 kg or 20.5 lb)" value={weight} onChange={(e) => setWeight(e.target.value)} />
         <input className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="🩺 Signalment (e.g., 3 y/o MN Lab mix)" value={signalment} onChange={(e) => setSignalment(e.target.value)} />
         <textarea className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="📚 Brief history or reason for visit" value={history} onChange={(e) => setHistory(e.target.value)} />
         <textarea className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="🔍 Key findings: PE, labs, imaging, etc." value={clinicalFindings} onChange={(e) => setClinicalFindings(e.target.value)} />
-        <textarea className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="📝 Plan: meds, rechecks, instructions..." value={planOverride} onChange={(e) => setPlanOverride(e.target.value)} rows={6} />
-
-        <div className="mb-3">
-          <label className="block text-sm font-medium mb-1 text-white">🤖 AI Model:</label>
-          <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full p-2 rounded-lg border border-gray-700 bg-gray-800 text-white">
-            <option value="gpt-3.5-turbo">GPT-3.5 (Fast)</option>
-            <option value="gpt-4">GPT-4 (Deeper Reasoning)</option>
-          </select>
-        </div>
+        <textarea className="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-white placeholder-gray-400" placeholder="📝 Plan: meds, rechecks, instructions... (optional)" value={planOverride} onChange={(e) => setPlanOverride(e.target.value)} rows={6} />
 
         <div className="flex items-center space-x-3">
           <input type="checkbox" id="useHistory" checked={useHistory} onChange={(e) => setUseHistory(e.target.checked)} className="form-checkbox h-5 w-5 text-blue-600" />
