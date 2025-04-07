@@ -1,6 +1,8 @@
+// ✅ Enhanced layout.js with polished sticky nav buttons, AI tagline, and placeholders
 import "../public/output.css";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import Link from "next/link";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -16,12 +18,12 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "VetFusionAI",
-  description: "AI-Powered Veterinary SOAP Notes - Built for Veterinarians, by Veterinarians",
+  description: "AI SOAPs for critical care, fieldwork, and everyday medicine",
   metadataBase: new URL("https://vetfusionai.com"),
   openGraph: {
-    title: "VetFusionAI - AI-Powered Veterinary SOAP Notes",
+    title: "VetFusionAI - AI SOAP Generator for Vets",
     description:
-      "Your AI-powered SOAP archive — built to follow you and your patients anywhere.",
+      "Powerful AI-generated SOAP notes tailored to your patients. Built for ER, relief, and rescue.",
     url: "https://vetfusionai.com",
     siteName: "VetFusionAI",
     images: [
@@ -36,9 +38,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "VetFusionAI - AI Veterinary SOAP Notes",
+    title: "VetFusionAI - Smart SOAPs for Real-World Veterinary Care",
     description:
-      "Your AI-powered SOAP archive — built to follow you and your patients anywhere.",
+      "Field-tested AI SOAPs. Real-time case tracking. Relief-ready tools.",
     images: ["https://vetfusionai.com/logo.webp"],
   },
 };
@@ -75,7 +77,37 @@ export default function RootLayout({ children }) {
 
       <body className="font-sans antialiased bg-white text-black dark:bg-gray-900 dark:text-white transition-all duration-300">
         <Toaster position="top-center" />
-        {children}
+
+        {/* Sticky Top Nav */}
+        <header className="sticky top-0 z-50 bg-gray-950 border-b border-gray-800 shadow-md py-3 px-4 sm:px-6 flex flex-wrap justify-between items-center gap-4">
+          <Link href="/" className="text-2xl font-extrabold text-teal-400 tracking-tight hover:text-white transition duration-300">
+            VetFusion<span className="text-white">AI</span>
+          </Link>
+          <nav className="flex flex-wrap justify-end gap-2 sm:gap-3 text-sm font-medium">
+            <Link href="/soap" className="bg-gray-800 hover:bg-teal-600 px-4 py-2 rounded-md text-white transition-all shadow-sm">
+              📝 SOAPs
+            </Link>
+            <Link href="/tracker" className="bg-gray-800 hover:bg-teal-600 px-4 py-2 rounded-md text-white transition-all shadow-sm">
+              📊 Tracker
+            </Link>
+            <Link href="/relief" className="bg-gray-800 hover:bg-teal-600 px-4 py-2 rounded-md text-white transition-all shadow-sm">
+              🧳 Relief
+            </Link>
+            <Link href="/rescue" className="bg-gray-800 hover:bg-teal-600 px-4 py-2 rounded-md text-white transition-all shadow-sm">
+              🐾 Rescue
+            </Link>
+            <Link href="#login" className="bg-gray-800 hover:bg-teal-600 px-4 py-2 rounded-md text-white transition-all shadow-sm">
+              🔐 Login
+            </Link>
+          </nav>
+        </header>
+
+        <main className="min-h-[calc(100vh-80px)]">{children}</main>
+
+        {/* Footer */}
+        <footer className="bg-gray-950 text-gray-500 text-center text-sm py-4 border-t border-gray-800">
+          Field-tested AI SOAPs. Fast, clear, and built for practice. © {new Date().getFullYear()} VetFusionAI
+        </footer>
       </body>
     </html>
   );

@@ -1,8 +1,9 @@
-// ✅ Rescue Page Update with Animation, Testimonial, CTA
+// ✅ Rescue Page Update with Animation, Testimonial, CTA and File Upload Integration
 "use client";
 
 import Link from "next/link";
 import { useEffect } from "react";
+import FileUploader from "@/components/FileUploader";
 
 export default function RescuePage() {
   useEffect(() => {
@@ -39,6 +40,10 @@ export default function RescuePage() {
         “Finally, a SOAP system that works for rescue medicine. VetFusionAI keeps us focused on care—not paperwork.”<br />
         <span className="block text-sm mt-2 text-gray-500">– Dr. Torres, Medical Director at No-Kill Shelter</span>
       </blockquote>
+
+      <div className="w-full max-w-xl mb-10">
+        <FileUploader animalNamePlaceholder="Enter animal name" />
+      </div>
 
       <Link href="/soap">
         <button className="bg-teal-600 hover:bg-teal-500 text-white font-bold px-6 py-3 rounded-full shadow animate-fade-in delay-400">
