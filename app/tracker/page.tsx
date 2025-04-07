@@ -34,33 +34,16 @@ export default function TrackerPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    let fullData: TrackerEntry[] = [];
-    let from = 0;
-    const batchSize = 1000;
-    let keepGoing = true;
+    const { data, error } = await supabase
+      .from("master_tracker")
+      .select("*")
+      .order("SOAP_Date", { ascending: false });
 
-    while (keepGoing) {
-      const { data, error } = await supabase
-        .from("master_tracker")
-        .select("*")
-        .order("SOAP_Date", { ascending: false })
-        .range(from, from + batchSize - 1);
-
-      if (error) {
-        console.error("🛑 Supabase fetch error:", error);
-        break;
-      }
-
-      if (data) {
-        fullData = fullData.concat(data);
-        keepGoing = data.length === batchSize;
-        from += batchSize;
-      } else {
-        keepGoing = false;
-      }
+    if (error) {
+      console.error("🛑 Supabase fetch error:", error);
+    } else {
+      setEntries(data || []);
     }
-
-    setEntries(fullData);
     setLoading(false);
   };
 
@@ -76,7 +59,7 @@ export default function TrackerPage() {
       .replace(/(soap|note|plan|assessment|summary|subjective|objective|history|findings|\*\*|\n)+/gi, " ")
       .replace(/\s{2,}/g, " ")
       .replace(/^[^a-zA-Z0-9]+/, "")
-      .replace(/[^       .replace(/[^\x20-~      .replace(/[^\x20-\x7E]+/g, "")
+      .replace(/[^\x20-\x7E]+/g, "")
       .trim()
       .slice(0, 140);
   };
@@ -123,7 +106,7 @@ export default function TrackerPage() {
     <div className="min-h-screen bg-gray-950 text-white overflow-y-auto">
       <Toaster position="top-center" />
 
-      <div className="sticky top-0 z-50 bg-gray-950 py-4 px-4 shadow-md">
+      <div className="sticky top-0 z-50 bg-gray-950 py-4 px-4 shadow-md border-b border-gray-800">
         <div className="max-w-2xl mx-auto">
           <input
             value={search}
