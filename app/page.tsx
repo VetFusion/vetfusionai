@@ -1,4 +1,4 @@
-// ✅ Homepage with Animated Testimonials Carousel
+// ✅ Homepage with Animated Testimonials Carousel + Polished Layout Integration
 "use client";
 
 import Link from "next/link";
@@ -11,39 +11,33 @@ const testimonials = [
   {
     name: "Dr. Rivera",
     title: "Emergency Veterinarian",
-    quote:
-      "VetFusionAI has revolutionized the way I document and communicate cases during overnight shifts. Total game changer.",
+    quote: "VetFusionAI has revolutionized how I document and communicate cases during overnight shifts. Total game changer."
   },
   {
     name: "Dr. Tanaka",
     title: "Relief Veterinarian",
-    quote:
-      "Fast, intuitive, and accurate. VetFusion keeps my records tight and my sanity intact even on marathon ER days.",
+    quote: "Fast, intuitive, and accurate. VetFusion keeps my records tight and my sanity intact even on marathon ER days."
   },
   {
     name: "Dr. Mendez",
     title: "Criticalist, Teaching Hospital",
-    quote:
-      "Having a medical scribe that understands internal medicine is priceless. VetFusionAI delivers.",
+    quote: "Having a medical scribe that understands internal medicine is priceless. VetFusionAI delivers."
   },
   {
     name: "Dr. Liu",
     title: "Shelter Director, Rescue One",
-    quote:
-      "Documenting hundreds of cases used to be chaos. VetFusion brought structure, speed, and sanity to our workflow.",
+    quote: "Documenting hundreds of cases used to be chaos. VetFusion brought structure, speed, and sanity to our workflow."
   },
   {
     name: "Dr. Graves",
     title: "Mobile Vet, Rural Outreach",
-    quote:
-      "No Wi-Fi? No problem. VetFusion drafts my SOAPs while I’m in the truck, syncing later. This is the future.",
+    quote: "No Wi-Fi? No problem. VetFusion drafts my SOAPs while I’m in the truck, syncing later. This is the future."
   },
   {
     name: "Dr. Feldman",
     title: "Veterinary Internist",
-    quote:
-      "It keeps my differentials sharp and my notes readable. AI meets medicine the right way here.",
-  },
+    quote: "It keeps my differentials sharp and my notes readable. AI meets medicine the right way here."
+  }
 ];
 
 const TestimonialCarousel = () => {
@@ -120,7 +114,7 @@ export default function HomePage() {
                   "📝 SOAP Generator",
                   "📊 Tracker",
                   "🧳 Relief Mode",
-                  "🐾 Rescue View",
+                  "🐾 Rescue View"
                 ][i]}
               </button>
             </Link>
@@ -163,13 +157,6 @@ export default function HomePage() {
           </button>
         </form>
       </div>
-
-      {/* FOOTER */}
-      {mounted && (
-        <footer className="bg-gray-900 text-gray-400 text-center text-sm py-6 w-full z-10">
-          Built for emergency, relief, and real-world veterinary medicine © {year} VetFusionAI
-        </footer>
-      )}
     </div>
   );
 }
