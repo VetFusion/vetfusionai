@@ -1,74 +1,50 @@
+// ✅ Rescue Page Update with Animation, Testimonial, CTA
 "use client";
 
 import Link from "next/link";
-import NavBar from "@/components/NavBar";
+import { useEffect } from "react";
 
-export default function RescueLandingPage() {
+export default function RescuePage() {
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+  }, []);
+
   return (
-    <div className="dark bg-gray-950 text-white min-h-screen">
-      <NavBar />
-      <main className="px-6 py-20 max-w-5xl mx-auto">
-        <h1 className="text-4xl md:text-6xl font-bold text-teal-400 mb-4 text-center">
-          Built for the Animals Who Stay
-        </h1>
-        <p className="text-lg text-gray-300 text-center mb-12">
-          VetFusionAI was designed for sanctuaries, shelters, and rescues where animals live long lives, with complex medical stories.
-        </p>
+    <div className="min-h-screen bg-gray-950 text-white px-4 py-16 flex flex-col items-center justify-center text-center">
+      <h1 className="text-5xl font-bold mb-4 text-teal-400 animate-fade-in">🐾 Rescue View</h1>
+      <p className="text-xl text-gray-300 max-w-2xl mb-8 animate-fade-in delay-100">
+        Designed for sanctuaries and rescues: streamline care, reduce documentation fatigue, and centralize records for every animal.
+      </p>
 
-        <div className="grid md:grid-cols-2 gap-12 mb-20">
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-4">🏥 Rescue-Specific Benefits</h2>
-            <ul className="list-disc pl-6 space-y-2 text-gray-300">
-              <li>Track cases over months or years</li>
-              <li>Auto-summarized timelines for chronic conditions</li>
-              <li>Built-in recheck reminders and SOAP continuity</li>
-              <li>Every SOAP stored, searchable, and readable</li>
-              <li>Survives handoffs between relief and staff</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-4">💡 Real Value for Rescue Teams</h2>
-            <ul className="list-disc pl-6 space-y-2 text-gray-300">
-              <li>Instantly catch up on any case</li>
-              <li>Track treatment responses over time</li>
-              <li>Minimize paperwork and missed notes</li>
-              <li>Bring structure to scattered history</li>
-              <li>Accessible by your whole team, securely</li>
-            </ul>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl w-full mb-10 animate-fade-in delay-200">
+        <div className="bg-gray-800 p-6 rounded-xl shadow hover:scale-105 transition">
+          <h3 className="text-xl font-semibold text-teal-300 mb-2">📁 Lifetime Histories</h3>
+          <p className="text-gray-300 text-sm">Track chronic cases over years with searchable, structured SOAPs and summaries.</p>
         </div>
-
-        <div className="bg-gray-800 rounded-xl p-8 shadow-xl mb-20">
-          <h2 className="text-2xl font-bold mb-4">✨ Why Rescues Love VetFusionAI</h2>
-          <ul className="grid md:grid-cols-2 gap-4 text-gray-200">
-            <li>✅ Timeline view for each animal</li>
-            <li>✅ Auto-summarized SOAP history</li>
-            <li>✅ Recheck tracker and reminders</li>
-            <li>✅ One system, multiple caregivers</li>
-            <li>✅ Works with your existing flow</li>
-            <li>✅ AI-powered clarity in chronic cases</li>
-          </ul>
+        <div className="bg-gray-800 p-6 rounded-xl shadow hover:scale-105 transition">
+          <h3 className="text-xl font-semibold text-teal-300 mb-2">📅 Recheck Logic</h3>
+          <p className="text-gray-300 text-sm">Never miss a follow-up with AI-predicted recheck timelines and alerts.</p>
         </div>
-
-        <div className="text-center mb-12">
-          <Link
-            href="/soap"
-            className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg"
-          >
-            🐾 Start Documenting Smarter
-          </Link>
-          <p className="mt-4 text-gray-500 text-sm">
-            Build a case history that lasts as long as the animal does.
-          </p>
+        <div className="bg-gray-800 p-6 rounded-xl shadow hover:scale-105 transition">
+          <h3 className="text-xl font-semibold text-teal-300 mb-2">📷 Unified Records</h3>
+          <p className="text-gray-300 text-sm">Attach diagnostics, labs, and photos into one central SOAP system.</p>
         </div>
-
-        <div className="text-center">
-          <Link href="/" className="text-sm text-teal-400 hover:underline">
-            ← Back to Home
-          </Link>
+        <div className="bg-gray-800 p-6 rounded-xl shadow hover:scale-105 transition">
+          <h3 className="text-xl font-semibold text-teal-300 mb-2">👩‍⚕️ Multi-User Access</h3>
+          <p className="text-gray-300 text-sm">Staff and volunteers can securely access and update notes as needed.</p>
         </div>
-      </main>
+      </div>
+
+      <blockquote className="max-w-3xl italic text-gray-400 mb-10 animate-fade-in delay-300">
+        “Finally, a SOAP system that works for rescue medicine. VetFusionAI keeps us focused on care—not paperwork.”<br />
+        <span className="block text-sm mt-2 text-gray-500">– Dr. Torres, Medical Director at No-Kill Shelter</span>
+      </blockquote>
+
+      <Link href="/soap">
+        <button className="bg-teal-600 hover:bg-teal-500 text-white font-bold px-6 py-3 rounded-full shadow animate-fade-in delay-400">
+          🐕 Start SOAP Note
+        </button>
+      </Link>
     </div>
   );
 }
