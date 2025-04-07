@@ -1,4 +1,4 @@
-// ✅ Tracker Page: SOAP Appears Below Selected Entry with Styled Readability
+// ✅ Tracker Page: Sticky Search, Cleaned AI Summaries, Toggle SOAPs
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -24,11 +24,6 @@ interface TrackerEntry {
 
 export default function TrackerPage() {
   const router = useRouter();
-  const handleEdit = (entry: TrackerEntry) => {
-    setEditEntry({ ...entry });
-    setEditMode(true);
-  };
-
   const [entries, setEntries] = useState<TrackerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -47,7 +42,7 @@ export default function TrackerPage() {
     while (keepGoing) {
       const { data, error } = await supabase
         .from("master_tracker")
-        .select("*", { count: "exact" })
+        .select("*")
         .order("SOAP_Date", { ascending: false })
         .range(from, from + batchSize - 1);
 
@@ -68,6 +63,39 @@ export default function TrackerPage() {
     setEntries(fullData);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const extractSummary = (soap?: string | null): string => {
+    if (!soap) return "";
+    const assessment = soap.match(/🧠\s*\*\*Assessment\*\*:?[\s\r\n]*(.*?)(\n|\*\*|$)/is)?.[1];
+    const raw = assessment || soap;
+    return raw
+      .replace(/(soap|note|plan|assessment|summary|subjective|objective|history|findings|\*\*|\n)+/gi, " ")
+      .replace(/\s{2,}/g, " ")
+      .replace(/^[^a-zA-Z0-9]+/, "")
+      .replace(/[^       .replace(/[^\x20-~      .replace(/[^\x20-\x7E]+/g, "")
+      .trim()
+      .slice(0, 140);
+  };
+
+  const formatDate = (d: string | null) => {
+    if (!d || isNaN(Date.parse(d))) return "—";
+    return format(new Date(d), "MMM d, yyyy");
+  };
+
+  const groupedEntries = entries.reduce((acc: Record<string, TrackerEntry[]>, entry) => {
+    const key = entry.Name.toLowerCase();
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(entry);
+    return acc;
+  }, {});
+
+  const filteredNames = Object.keys(groupedEntries).filter((name) =>
+    name.toLowerCase().startsWith(search.trim().toLowerCase())
+  );
 
   const saveChanges = async () => {
     if (!editEntry?.id) return;
@@ -91,51 +119,25 @@ export default function TrackerPage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const formatDate = (d: string | null) => {
-    if (!d || isNaN(Date.parse(d))) return "—";
-    return format(new Date(d), "MMM d, yyyy");
-  };
-
-  const getRecheckColor = (d: string | null) => {
-    if (!d || isNaN(Date.parse(d))) return "text-gray-400";
-    const date = new Date(d);
-    if (isBefore(date, new Date())) return "text-red-600 dark:text-red-400";
-    if (isBefore(date, addDays(new Date(), 3))) return "text-yellow-600 dark:text-yellow-400";
-    return "text-green-600 dark:text-green-400";
-  };
-
-  const groupedEntries = entries.reduce((acc: Record<string, TrackerEntry[]>, entry) => {
-    const key = entry.Name.toLowerCase();
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(entry);
-    return acc;
-  }, {});
-
-  const filteredNames = Object.keys(groupedEntries).filter((name) =>
-    name.toLowerCase().startsWith(search.trim().toLowerCase())
-  );
-
   return (
-    <div className="min-h-screen py-12 px-6 bg-gray-950 text-white overflow-y-auto">
+    <div className="min-h-screen bg-gray-950 text-white overflow-y-auto">
       <Toaster position="top-center" />
 
-      <div className="max-w-2xl mx-auto mb-6 flex flex-wrap gap-4 items-center">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="🔍 Search by name..."
-          className="flex-grow px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white shadow"
-        />
+      <div className="sticky top-0 z-50 bg-gray-950 py-4 px-4 shadow-md">
+        <div className="max-w-2xl mx-auto">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Search by name..."
+            className="w-full px-6 py-3 text-lg rounded-xl border border-gray-600 bg-gray-800 text-white shadow"
+          />
+        </div>
       </div>
 
       {loading ? (
-        <p className="text-center text-gray-300">Loading...</p>
+        <p className="text-center text-gray-300 mt-12">Loading...</p>
       ) : (
-        <div className="space-y-6 max-w-5xl mx-auto pb-24">
+        <div className="space-y-6 max-w-5xl mx-auto pb-24 pt-6">
           {filteredNames.map((name, idx) => {
             const entries = groupedEntries[name];
             const firstEntry = entries[0];
@@ -161,15 +163,11 @@ export default function TrackerPage() {
                     <div key={i}>
                       <div
                         className="bg-gray-900 p-4 rounded-xl border border-gray-700 cursor-pointer hover:ring-2 hover:ring-teal-500"
-                        onClick={() => setSelectedId(entry.id ?? null)}
+                        onClick={() => setSelectedId(selectedId === entry.id ? null : entry.id)}
                       >
-                        <p className="text-sm text-gray-400">📅 {formatDate(entry.SOAP_Date)}</p>
-                        <p className="text-sm text-gray-200 mt-1">{entry.Case_Summary}</p>
-                        {entry.Recheck_Due && (
-                          <p className={`text-xs mt-1 ${getRecheckColor(entry.Recheck_Due)}`}>
-                            🔁 Recheck Due: {formatDate(entry.Recheck_Due)}
-                          </p>
-                        )}
+                        <p className="text-sm text-gray-200 mt-1 italic line-clamp-2">
+                          {extractSummary(entry.Full_SOAP)}
+                        </p>
                       </div>
                       {selectedId === entry.id && (
                         <div className="mt-4 bg-gray-900 p-5 rounded-xl border border-gray-700 space-y-4">
