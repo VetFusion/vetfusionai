@@ -1,4 +1,4 @@
-// ✅ SOAP Generator with Context Fetching, Polished UX, and Supabase Integration
+// ✅ SOAP Generator with Context Fetching, Polished UX, PDF Fix, and Supabase Integration
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -163,9 +163,11 @@ export default function SOAPGenerator() {
 
   const saveAsPDF = () => {
     const doc = new jsPDF();
-    const lines = doc.splitTextToSize(generatedSOAP, 180);
+    const cleaned = generatedSOAP.replace(/[^\x00-\x7F]/g, "");
+    doc.setFont("helvetica");
+    const lines = doc.splitTextToSize(cleaned, 180);
     doc.text(lines, 10, 10);
-    doc.save("SOAP-Note.pdf");
+    doc.save(`${animalName.trim() || "SOAP"}-Note.pdf`);
   };
 
   return (
