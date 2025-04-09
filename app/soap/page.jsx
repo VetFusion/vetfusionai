@@ -143,8 +143,10 @@ export default function SOAPGenerator() {
         Full_SOAP: generatedSOAP.slice(0, 9999),
       };
 
-      const { error } = await supabase.from("master_tracker").insert([payload]);
-
+      const { error } = await supabase
+      .from("master_tracker")
+      .upsert([payload], { onConflict: ["Name", "SOAP_Date"] });
+    
       if (error) {
         toast.error(`❌ Error saving to Tracker: ${error.message}`);
       } else {
