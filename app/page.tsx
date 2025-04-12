@@ -1,60 +1,80 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useState, useEffect } from "react";
+import Link from 'next/link';
+import { motion } from 'framer-motion';
 
-export default function HomePage() {
-  // Set dark mode to true by default
-  const [darkMode, setDarkMode] = useState(true);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-  }, [darkMode]);
+export default function Page() {
+  const cards = [
+    {
+      title: '✨ Generate SOAP',
+      href: '/soap',
+      description: 'AI-powered SOAP creation with real clinical reasoning and history integration.',
+    },
+    {
+      title: '📋 Manual SOAP Entry',
+      href: '/soap',
+      description: 'Paste structured SOAPs for past patients or field notes. Perfect for relief vets.',
+    },
+    {
+      title: '📥 Bulk Import',
+      href: '/import',
+      description: 'Upload .docx SOAP files. AI parses and preps them for review + submission.',
+    },
+    {
+      title: '📊 Tracker Dashboard',
+      href: '/tracker',
+      description: 'View saved SOAPs, upcoming rechecks, and patient continuity data.',
+    },
+    {
+      title: '🧬 Patient Timeline (Coming Soon)',
+      href: '#',
+      description: 'Visualize chronic case progression and treatment efficacy over time.',
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-100 dark:from-gray-900 dark:to-gray-950 flex flex-col items-center justify-center px-4">
-      <div className="absolute top-4 right-4">
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded transition"
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-gray-900 dark:to-gray-950 px-6 py-16">
+      {/* 🧠 HERO SECTION */}
+      <section className="max-w-4xl mx-auto text-center mb-20">
+        <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 dark:text-white mb-4">
+          ✨ Start Saving Lives with VetFusionAI
+        </h1>
+        <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
+          Built for veterinarians, rescue groups, and relief professionals.
+        </p>
+        <Link
+          href="/soap"
+          className="inline-block bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold px-6 py-3 rounded-xl shadow transition"
         >
-          {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
-        </button>
+          🚀 Launch SOAP Generator
+        </Link>
+      </section>
+
+      {/* 📦 FEATURE CARD GRID */}
+      <div className="max-w-5xl mx-auto text-center">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {cards.map((card, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: idx * 0.1 }}
+              className="bg-white/30 dark:bg-gray-800/40 p-6 rounded-xl shadow-lg backdrop-blur-md hover:scale-[1.02] transition-all"
+            >
+              <Link href={card.href}>
+                <div className="cursor-pointer">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{card.title}</h2>
+                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{card.description}</p>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+
+        <p className="mt-12 text-sm text-gray-500 dark:text-gray-500">
+          Powered by OpenAI, Supabase, and your clinical wisdom.
+        </p>
       </div>
-
-      <h1 className="text-5xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">
-        🐾 VetFusionAI
-      </h1>
-      <p className="text-xl font-medium mb-12 text-gray-700 dark:text-gray-300 text-center max-w-2xl">
-        Building a living, intelligent medical memory for every animal, helping you think smarter, act faster, and never miss a beat.
-      </p>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-4xl">
-        <Link href="/soap">
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg shadow-lg rounded-xl p-6 hover:scale-105 transition transform duration-300">
-            <h2 className="text-2xl font-semibold mb-2 text-gray-800 dark:text-white">📋 SOAP Generator</h2>
-            <p className="text-gray-600 dark:text-gray-300">Generate detailed, accurate SOAP notes powered by AI.</p>
-          </div>
-        </Link>
-
-        <Link href="/tracker">
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg shadow-lg rounded-xl p-6 hover:scale-105 transition transform duration-300">
-            <h2 className="text-2xl font-semibold mb-2 text-gray-800 dark:text-white">🐾 Animal Tracker</h2>
-            <p className="text-gray-600 dark:text-gray-300">Monitor, update, and organize animal cases efficiently.</p>
-          </div>
-        </Link>
-
-        <Link href="/dashboard">
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg shadow-lg rounded-xl p-6 hover:scale-105 transition transform duration-300">
-            <h2 className="text-2xl font-semibold mb-2 text-gray-800 dark:text-white">🛠️ Dashboard</h2>
-            <p className="text-gray-600 dark:text-gray-300">Access insights and manage your clinic with ease.</p>
-          </div>
-        </Link>
-      </div>
-
-      <footer className="mt-12 text-gray-500 dark:text-gray-400 text-sm">
-        Built for veterinarians, by veterinarians © {new Date().getFullYear()} VetFusionAI
-      </footer>
-    </div>
+    </main>
   );
 }

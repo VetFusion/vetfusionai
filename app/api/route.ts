@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY
 });
 
-export async function POST(req) {
+export async function POST(req: Request) {
   const { prompt } = await req.json();
 
   try {
@@ -15,9 +15,10 @@ export async function POST(req) {
       temperature: 0.7,
     });
 
-    return NextResponse.json({ text: chat.choices[0]?.message?.content });
+    const text = chat.choices[0]?.message?.content;
+    return NextResponse.json({ text });
   } catch (error) {
-    console.error('SOAP generation error:', error);
-    return NextResponse.json({ text: '❌ Error generating SOAP' });
+    console.error('[generate-soap]', error);
+    return NextResponse.json({ text: '❌ Failed to generate SOAP.', error });
   }
 }
