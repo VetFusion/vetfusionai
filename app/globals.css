@@ -2,3 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========== Design tokens ========== */
+:root{
+  --vf-bg: 16 18 22;            /* #101216 */
+  --vf-teal: 20 184 166;        /* teal-500 */
+  --vf-neon: 56 189 248;        /* sky-500 */
+  --vf-fuchsia: 168 85 247;     /* fuchsia-500 */
+}
+
+html.dark body{
+  background: rgb(var(--vf-bg));
+  color: white;
+}
+
+/* ========== Glass + glow ========== */
+.vf-glass{
+  border-radius: 16px;
+  backdrop-filter: blur(24px);
+  background-color: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.06) inset,
+    0 8px 40px rgba(0,0,0,0.35);
+}
+
+.vf-glow{ position: relative; isolation: isolate; }
+.vf-glow::before{
+  content:"";
+  position:absolute; inset:-2px; z-index:-1;
+  background:
+    radial-gradient(60% 60% at 25% 15%, rgba(var(--vf-teal),0.35), transparent 60%),
+    radial-gradient(60% 60% at 75% 85%, rgba(var(--vf-neon),0.30), transparent 60%);
+  filter: blur(24px);
+  border-radius: inherit;
+}
+
+/* ========== Neon accent line ========== */
+.vf-accent{ 
+  background: linear-gradient(90deg,
+    rgba(var(--vf-teal),0.65),
+    rgba(var(--vf-neon),0.65),
+    rgba(var(--vf-fuchsia),0.65)
+  );
+}
+
+/* ========== Buttons (pure CSS) ========== */
+.vf-btn{
+  display:inline-flex; align-items:center; gap:8px;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+}
+.vf-btn:hover{
+  box-shadow: 0 0 22px rgba(var(--vf-neon),0.25), 0 0 2px rgba(255,255,255,0.25) inset;
+  border-color: rgba(var(--vf-neon),0.5);
+}
+.vf-btn--primary{
+  background: linear-gradient(180deg, rgba(var(--vf-neon),0.22), rgba(255,255,255,0.06));
+}
+
+/* ========== Nav chips (pure CSS) ========== */
+.vf-nav a{
+  display:inline-flex; align-items:center; gap:8px;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 0.875rem; line-height: 1.25rem;
+  color:#fff;
+  background-color: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+}
+.vf-nav a:hover{
+  border-color: rgba(var(--vf-neon),0.45);
+  box-shadow: 0 0 18px rgba(var(--vf-neon),0.25);
+}
+
+/* ========== Section headings ========== */
+.vf-h2{
+  font-size: 1.125rem; line-height: 1.75rem; /* text-lg */
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* ========== Subtle background bloom ========== */
+.vf-bg-neon{
+  pointer-events:none; position:fixed; inset:0; z-index:-10; opacity:.18;
+  background:
+    radial-gradient(600px 400px at 20% 20%, rgba(var(--vf-neon),.40), transparent 60%),
+    radial-gradient(560px 560px at 80% 70%, rgba(var(--vf-fuchsia),.30), transparent 60%);
+}

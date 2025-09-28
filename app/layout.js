@@ -105,6 +105,8 @@ export default function RootLayout({ children }) {
             </nav>
           </div>
         </header>
+{/* Neon accent strip under header */}
+<div className="vf-accent h-[2px] w-full opacity-40" />
 
         <main className="min-h-[calc(100vh-80px)]">{children}</main>
 
