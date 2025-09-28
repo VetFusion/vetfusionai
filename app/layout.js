@@ -1,11 +1,23 @@
-// ✅ Cleaned & Polished layout.js – responsive sticky nav & fixed footer year
-import "../public/output.css";
+// app/layout.js
+import "./globals.css";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "react-hot-toast";
 import Link from "next/link";
+import Script from "next/script";
+import { Toaster } from "react-hot-toast";
+import React from "react";
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans", display: "swap" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
+
+// Optional: Vercel Snippet, guarded by env (JS-safe: no type annotations)
+let SnippetComp = null;
+try {
+  // optional import; won't crash if package isn't installed
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+  SnippetComp = require("@vercel/snippet").Snippet;
+} catch {
+  SnippetComp = null;
+}
 
 export const metadata = {
   title: "VetFusionAI",
@@ -29,26 +41,40 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const snippetId = process.env.NEXT_PUBLIC_VERCEL_SNIPPET_ID;
+  const showSnippet = !!snippetId && process.env.NODE_ENV === "production" && !!SnippetComp;
+
   return (
-    <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`dark ${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-MP6LCYK3XB"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-MP6LCYK3XB');
-            `,
-          }}
-        />
+        {/* Fonts preconnect */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400&display=swap"
           rel="stylesheet"
         />
+        {/* Google Analytics only in production */}
+        {process.env.NODE_ENV === "production" && (
+          <>
+            <Script
+              src="https://www.googletagmanager.com/gtag/js?id=G-MP6LCYK3XB"
+              strategy="afterInteractive"
+            />
+            <Script id="ga-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', 'G-MP6LCYK3XB');
+              `}
+            </Script>
+          </>
+        )}
       </head>
 
       <body className="font-sans antialiased bg-white text-black dark:bg-gray-900 dark:text-white transition-all duration-300">
@@ -82,10 +108,13 @@ export default function RootLayout({ children }) {
 
         <main className="min-h-[calc(100vh-80px)]">{children}</main>
 
-        {/* Single clean footer */}
+        {/* Footer */}
         <footer className="bg-gray-950 text-gray-500 text-center text-sm py-4 border-t border-gray-800">
           Field-tested AI SOAPs. Fast, clear, and built for practice. © {new Date().getFullYear()} VetFusionAI
         </footer>
+
+        {/* Optional Vercel Snippet (only if you set NEXT_PUBLIC_VERCEL_SNIPPET_ID) */}
+        {showSnippet ? <SnippetComp id={snippetId} /> : null}
       </body>
     </html>
   );

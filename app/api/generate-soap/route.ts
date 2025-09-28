@@ -7,6 +7,10 @@ export const runtime = "nodejs";
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
+// Some models (incl. some GPT-5 aliases) reject non-default temperature.
+// Treat any model string starting with "gpt-5" as "no temperature override".
+const supportsTemp = (m: string) => !/^gpt-5/i.test(m);
+
 function kgToLbOz(kg?: number | string) {
   const k = typeof kg === "string" ? Number(kg) : kg;
   if (!k || !isFinite(k)) return null;
@@ -26,10 +30,16 @@ function buildDeltaV2025Prompt(input: {
 
   let weightHeader = "—";
   const w = kgToLbOz(weightKg ?? "");
-  if (w) { const ozPad = String(w.oz); weightHeader = `${w.lb} lb ${ozPad} oz (${w.kg.toFixed(2)} kg)`; }
+  if (w) weightHeader = `${w.lb} lb ${w.oz} oz (${w.kg.toFixed(2)} kg)`;
 
-  const prior = (previousSOAPs ?? []).filter(Boolean).map((t, i) => `#${i + 1}: ${t?.slice(0, 1500)}`).join("\n\n");
-  const planNote = planOverride?.trim() ? `\nClinician Plan Override (verbatim; do not alter):\n"""${planOverride.trim()}"""\n` : "";
+  const prior = (previousSOAPs ?? [])
+    .filter(Boolean)
+    .map((t, i) => `#${i + 1}: ${t?.slice(0, 1500)}`)
+    .join("\n\n");
+
+  const planNote = planOverride?.trim()
+    ? `\nClinician Plan Override (verbatim; do not alter):\n"""${planOverride.trim()}"""\n`
+    : "";
 
   return `
 You are a veterinary scribe for DELTA Rescue. Output ONE SOAP that matches this template EXACTLY, including headings, icons, and ordering. 
@@ -178,24 +188,31 @@ export async function POST(req: NextRequest) {
             2
           )}`;
 
-    const first = await openai.chat.completions.create({
-      model: MODEL,
-      temperature: 0.2,
-      messages: [{ role: "user", content: prompt }],
-    });
+    // Build params; add temperature only if the model supports it
+    const genParams: any = { model: MODEL, messages: [{ role: "user", content: prompt }] };
+    if (supportsTemp(MODEL)) genParams.temperature = 0.2;
 
+    const first = await openai.chat.completions.create(genParams);
     let soap = first.choices[0]?.message?.content?.trim() || "";
 
     const missing = requiresSections(soap);
     if (layout === "delta-v2025-09" && missing.length) {
-      const repair = await openai.chat.completions.create({
+      const repairParams: any = {
         model: MODEL,
-        temperature: 0.1,
-        messages: [{
-          role: "user",
-          content: prompt + `\n\nYou omitted required sections: ${missing.join(", ")}.\nRegenerate the SOAP USING THE EXACT TEMPLATE and include EVERY missing section.`,
-        }],
-      });
+        messages: [
+          {
+            role: "user",
+            content:
+              prompt +
+              `\n\nYou omitted required sections: ${missing.join(
+                ", "
+              )}.\nRegenerate the SOAP USING THE EXACT TEMPLATE and include EVERY missing section.`,
+          },
+        ],
+      };
+      if (supportsTemp(MODEL)) repairParams.temperature = 0.1;
+
+      const repair = await openai.chat.completions.create(repairParams);
       soap = repair.choices[0]?.message?.content?.trim() || soap;
     }
 
