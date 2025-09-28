@@ -27,3 +27,5 @@ build/
 *.log
 .env*
 
+.env*
+!.env.local.example
