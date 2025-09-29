@@ -1,12 +1,10 @@
 "use client";
 
-import GlowCard from "@/components/GlowCard"; // optional wrapper
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /* ------------------------------------------------------------------
-   Types
+   Types from your API
 ------------------------------------------------------------------- */
-
 type Row = {
   id: string;
   name: string;
@@ -35,7 +33,6 @@ type Dir = "asc" | "desc";
 /* ------------------------------------------------------------------
    Utilities
 ------------------------------------------------------------------- */
-
 function useDebounce<T>(value: T, ms = 300) {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -47,29 +44,169 @@ function useDebounce<T>(value: T, ms = 300) {
 
 const isTypingTarget = (el: Element | null) => {
   if (!el) return false;
-  const node = el as HTMLElement;
-  const tag = node.tagName?.toLowerCase();
-  return (
-    node.isContentEditable ||
-    tag === "input" ||
-    tag === "textarea" ||
-    tag === "select"
-  );
+  const n = el as HTMLElement;
+  const tag = n.tagName?.toLowerCase();
+  return n.isContentEditable || tag === "input" || tag === "textarea" || tag === "select";
 };
 
 const wardChip = (code?: string | null) =>
   code ? (
-    <span className="px-2 py-1 mr-2 rounded-full text-[10px] bg-gray-200">
-      {code}
-    </span>
+    <span className="px-2 py-0.5 mr-2 rounded-full text-[10px] bg-gray-900 text-white">{code}</span>
   ) : null;
+
+const computeNameKey = (n?: string | null) =>
+  (n || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+
+const copy = (text: string) => navigator.clipboard.writeText(text);
+
+const STORAGE_KEY = "vf_tracker_state_v2";
+
+/* ------------------------------------------------------------------
+   Inline AI generator (Generate → Save) per-row
+------------------------------------------------------------------- */
+function InlineAIGenerator({ row }: { row: Row }) {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [usedPrior, setUsedPrior] = useState<string>("");
+
+  const lookupBy =
+    (row.name_key || computeNameKey(row.name)) ? "name_key" :
+    (row.soap_id ? "soap_id" : "name");
+
+  const lookupValue = row.name_key || computeNameKey(row.name) || row.soap_id || row.name;
+
+  async function generate() {
+    setLoading(true);
+    try {
+      const payload = {
+        input: {
+          date: new Date().toISOString().slice(0, 10),
+          name: row.name,
+          residence: [row.ward, row.area].filter(Boolean).join("-") || row.location || undefined,
+          techNotes: row.snippet || undefined,
+          styleVariant: "Lucas",
+        },
+        lookup: { by: lookupBy as "name_key" | "soap_id" | "name", value: lookupValue },
+      };
+
+      // Prefer continuity-aware endpoint
+      let res = await fetch("/api/soap/with-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      // Fallback to basic generator if continuity route isn't present
+      if (res.status === 404) {
+        res = await fetch("/api/soap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: payload.input }),
+        });
+      }
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+      setText(json.soap || json.content || "");
+      setUsedPrior(json.usedPrior || json.usedPriorCount ? " (with prior)" : "");
+    } catch (e: any) {
+      alert(`❌ Failed to generate: ${e.message}`);
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function save() {
+    if (!text.trim()) {
+      alert("No SOAP to save yet. Generate first.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const trackerRow = {
+        // minimal upsert payload for master_tracker (adjust column names to match your DB)
+        Name: row.name,
+        SOAP_Date: new Date().toISOString().slice(0, 10),
+        Ward: row.ward ?? null,
+        Location: row.location ?? null,
+        Area: row.area ?? null,
+        Cage: row.cage ?? null,
+        Snippet: text.slice(0, 280),
+      };
+
+      const res = await fetch("/api/soap/upsert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ soap: { content: text }, trackerRow }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+      alert("✅ Saved to Supabase.");
+    } catch (e: any) {
+      if (String(e?.message || "").includes("Failed to fetch")) {
+        alert("The save endpoint (/api/soap/upsert) is missing. Ask me for that route and I’ll paste it in.");
+      } else {
+        alert(`❌ Save failed: ${e.message}`);
+      }
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex gap-1">
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="px-2.5 py-1.5 rounded-md bg-blue-600 text-white text-xs disabled:opacity-50"
+          type="button"
+          title="Generate SOAP from last note + this row"
+        >
+          {loading ? "Generating…" : `✨ Generate${usedPrior}`}
+        </button>
+        <button
+          onClick={() => copy(text)}
+          disabled={!text}
+          className="px-2.5 py-1.5 rounded-md bg-slate-700 text-white text-xs disabled:opacity-50"
+          type="button"
+        >
+          Copy
+        </button>
+        <button
+          onClick={save}
+          disabled={!text || saving}
+          className="px-2.5 py-1.5 rounded-md bg-emerald-600 text-white text-xs disabled:opacity-50"
+          type="button"
+          title="Save to Supabase (soap_notes + master_tracker upsert)"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+      {text && (
+        <textarea
+          className="w-64 h-28 p-2 rounded-md bg-black/25 border border-white/10 text-xs"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+      )}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------
    Page
 ------------------------------------------------------------------- */
-
-const STORAGE_KEY = "vf_tracker_state_v2";
-
 export default function TrackerPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -96,7 +233,7 @@ export default function TrackerPage() {
   const searchRef = useRef<HTMLInputElement>(null);
   const fetchAbort = useRef<AbortController | null>(null);
 
-  // --- Derived -----------------------------------------------------
+  // Derived: CSV link
   const csvHref = useMemo(() => {
     const params = new URLSearchParams({
       ...(dq && { q: dq }),
@@ -112,9 +249,8 @@ export default function TrackerPage() {
     return `/api/tracker?${params.toString()}`;
   }, [dq, from, to, ward, dueOnly, sort, dir]);
 
-  // --- URL ↔ State (persist filters & allow sharing) ---------------
+  /* ---------------- URL ↔ State (hydrate on mount) ---------------- */
   useEffect(() => {
-    // On first mount: hydrate from URL or localStorage
     const url = new URL(window.location.href);
     const get = (k: string) => url.searchParams.get(k) ?? "";
 
@@ -128,7 +264,6 @@ export default function TrackerPage() {
       dir: (get("dir") as Dir) || "desc",
     };
 
-    // If URL empty, attempt localStorage
     const hasURLState =
       url.searchParams.size > 0 &&
       (url.searchParams.has("q") ||
@@ -163,7 +298,7 @@ export default function TrackerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Push current state to URL + localStorage (debounced by dq)
+  // Push state → URL + localStorage
   useEffect(() => {
     const url = new URL(window.location.href);
     const sp = url.searchParams;
@@ -178,16 +313,12 @@ export default function TrackerPage() {
     window.history.replaceState({}, "", next);
 
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ q: dq, from, to, ward, dueOnly, sort, dir })
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ q: dq, from, to, ward, dueOnly, sort, dir }));
     } catch {}
   }, [dq, from, to, ward, dueOnly, sort, dir]);
 
-  // --- Fetch -------------------------------------------------------
+  /* ---------------- Fetch ---------------- */
   const fetchData = useCallback(async () => {
-    // cancel any in-flight request to avoid race conditions
     fetchAbort.current?.abort();
     const ac = new AbortController();
     fetchAbort.current = ac;
@@ -205,17 +336,15 @@ export default function TrackerPage() {
         dir,
         limit: "200",
       });
-      const r = await fetch(`/api/tracker?${params.toString()}`, {
-        cache: "no-store",
-        signal: ac.signal,
-      });
+      const r = await fetch(`/api/tracker?${params.toString()}`, { cache: "no-store", signal: ac.signal });
       if (!r.ok) throw new Error(await r.text());
       const j = await r.json();
       setRows(j.rows ?? []);
     } catch (e: any) {
-      if (e?.name === "AbortError") return; // ignore
-      setError(e?.message || "Failed to load tracker rows.");
-      setRows([]);
+      if (e?.name !== "AbortError") {
+        setError(e?.message || "Failed to load tracker rows.");
+        setRows([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -225,7 +354,7 @@ export default function TrackerPage() {
     fetchData();
   }, [fetchData]);
 
-  // Hotkeys: "/" focus search (when not typing), Alt+R refresh, Esc close drawer, Enter in filters triggers fetch
+  /* ---------------- Hotkeys ---------------- */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = document.activeElement;
@@ -234,19 +363,14 @@ export default function TrackerPage() {
       if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         searchRef.current?.focus();
-        return;
       }
 
       if ((e.key === "r" || e.key === "R") && e.altKey && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         fetchData();
-        return;
       }
 
-      if (e.key === "Escape") {
-        setOpen(null);
-        return;
-      }
+      if (e.key === "Escape") setOpen(null);
     };
 
     const onEnter = (e: KeyboardEvent) => {
@@ -261,6 +385,7 @@ export default function TrackerPage() {
     };
   }, [fetchData]);
 
+  /* ---------------- Helpers ---------------- */
   const setSortToggle = (k: SortKey) => {
     if (k === sort) setDir(dir === "asc" ? "desc" : "asc");
     else {
@@ -272,25 +397,18 @@ export default function TrackerPage() {
   const openDrawer = async (r: Row) => {
     setOpen(r);
     setHistory(null);
-    if (!r.name_key) return;
+    const key = r.name_key || computeNameKey(r.name);
+    if (!key) return;
     try {
       setHistoryLoading(true);
-      const res = await fetch(
-        `/api/history?name_key=${encodeURIComponent(r.name_key)}&limit=5`,
-        { cache: "no-store" }
-      );
-      if (!res.ok) {
-        setHistory([]);
-        return;
-      }
-      const j = await res.json();
+      const res = await fetch(`/api/history?name_key=${encodeURIComponent(key)}&limit=5`, { cache: "no-store" });
+      const j = res.ok ? await res.json() : { rows: [] };
       setHistory(j.rows ?? []);
     } finally {
       setHistoryLoading(false);
     }
   };
 
-  // Quick date presets
   const setRange = (days: number) => {
     const end = new Date();
     const start = new Date();
@@ -300,38 +418,23 @@ export default function TrackerPage() {
     setTo(fmt(end));
   };
 
-  // Loading skeleton rows
-  const skeleton = (
-    <tr>
-      <td className="p-3 animate-pulse">
-        <div className="h-4 w-20 bg-gray-200 rounded" />
-      </td>
-      <td className="p-3 animate-pulse">
-        <div className="h-4 w-28 bg-gray-200 rounded" />
-      </td>
-      <td className="p-3 animate-pulse">
-        <div className="h-4 w-40 bg-gray-200 rounded" />
-      </td>
-      <td className="p-3 animate-pulse">
-        <div className="h-4 w-64 bg-gray-200 rounded" />
-      </td>
-      <td className="p-3 animate-pulse">
-        <div className="h-4 w-16 bg-gray-200 rounded" />
-      </td>
-    </tr>
-  );
-
   const displayName = (r: Row) => r.name_caps?.trim() || r.name || "—";
   const displayAreaCage = (r: Row) => [r.area, r.cage].filter(Boolean).join(" / ") || "—";
   const ageClass = (n?: number | null) =>
-    n == null
-      ? "bg-gray-400 text-white"
-      : n <= 7
-      ? "bg-green-600 text-white"
-      : n <= 30
-      ? "bg-yellow-600 text-white"
-      : "bg-gray-600 text-white";
+    n == null ? "bg-gray-400 text-white" : n <= 7 ? "bg-green-600 text-white" : n <= 30 ? "bg-yellow-600 text-white" : "bg-gray-600 text-white";
 
+  /* ---------------- Skeleton Row ---------------- */
+  const SkeletonRow = () => (
+    <tr>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <td key={i} className="p-3">
+          <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
+        </td>
+      ))}
+    </tr>
+  );
+
+  /* ---------------- Render ---------------- */
   return (
     <div className="p-6 space-y-4">
       {/* Header */}
@@ -341,7 +444,9 @@ export default function TrackerPage() {
           <a className="px-3 py-2 rounded-xl border" href={csvHref} target="_blank" rel="noreferrer">
             Export CSV
           </a>
-          <div className="text-sm text-gray-500">{rows.length} result{rows.length === 1 ? "" : "s"}</div>
+          <div className="text-sm text-gray-500">
+            {rows.length} result{rows.length === 1 ? "" : "s"}
+          </div>
         </div>
       </div>
 
@@ -354,24 +459,27 @@ export default function TrackerPage() {
             placeholder="Search name…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            aria-label="Search by name"
           />
           {q && (
             <button
               aria-label="Clear search"
               className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
               onClick={() => setQ("")}
+              type="button"
             >
               ×
             </button>
           )}
         </div>
-        <input type="date" className="border rounded-xl p-2" value={from} onChange={(e) => setFrom(e.target.value)} />
-        <input type="date" className="border rounded-xl p-2" value={to} onChange={(e) => setTo(e.target.value)} />
+        <input type="date" className="border rounded-xl p-2" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From date" />
+        <input type="date" className="border rounded-xl p-2" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To date" />
         <input
           className="border rounded-xl p-2"
           placeholder="Ward (e.g., BR, MR…)"
           value={ward}
           onChange={(e) => setWard(e.target.value)}
+          aria-label="Ward"
         />
         <div className="flex items-center gap-2 flex-wrap">
           {["BR", "MR", "ICU", "JH", "PK", "Q", "ALL"].map((w) => (
@@ -379,6 +487,7 @@ export default function TrackerPage() {
               key={w}
               className={`px-2 py-1 rounded-full text-xs border ${ward === w || (w === "ALL" && !ward) ? "bg-black text-white" : ""}`}
               onClick={() => setWard(w === "ALL" ? "" : w)}
+              type="button"
             >
               {w}
             </button>
@@ -389,7 +498,7 @@ export default function TrackerPage() {
           Recheck due (&gt;30d)
         </label>
         <div className="flex gap-2">
-          <button className="px-4 py-2 rounded-xl shadow bg-black text-white" onClick={fetchData} disabled={loading}>
+          <button className="px-4 py-2 rounded-xl shadow bg-black text-white" onClick={fetchData} disabled={loading} type="button">
             {loading ? "Loading…" : "Filter"}
           </button>
           <button
@@ -402,6 +511,7 @@ export default function TrackerPage() {
               setDueOnly(false);
             }}
             disabled={loading}
+            type="button"
           >
             Reset
           </button>
@@ -417,17 +527,11 @@ export default function TrackerPage() {
           { label: "30d", d: 30 },
           { label: "90d", d: 90 },
         ].map((p) => (
-          <button key={p.label} className="px-2 py-1 rounded-full border" onClick={() => setRange(p.d)}>
+          <button key={p.label} className="px-2 py-1 rounded-full border" onClick={() => setRange(p.d)} type="button">
             {p.label}
           </button>
         ))}
-        <button
-          className="px-2 py-1 rounded-full border"
-          onClick={() => {
-            setFrom("");
-            setTo("");
-          }}
-        >
+        <button className="px-2 py-1 rounded-full border" onClick={() => { setFrom(""); setTo(""); }} type="button">
           Clear dates
         </button>
       </div>
@@ -435,7 +539,10 @@ export default function TrackerPage() {
       {/* Error */}
       {error && (
         <div className="p-3 rounded-xl bg-red-50 text-red-700 border border-red-200">
-          {error} <button className="underline ml-2" onClick={fetchData}>Retry</button>
+          {error}{" "}
+          <button className="underline ml-2" onClick={fetchData} type="button">
+            Retry
+          </button>
         </div>
       )}
 
@@ -445,65 +552,91 @@ export default function TrackerPage() {
           <thead className="bg-gray-900 text-white sticky top-0 z-10">
             <tr>
               <th className="text-left p-3">
-                <button className="underline underline-offset-4" onClick={() => setSortToggle("date")}>
+                <button className="underline underline-offset-4" onClick={() => setSortToggle("date")} type="button" aria-label="Sort by date">
                   Date {sort === "date" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </button>
               </th>
               <th className="text-left p-3">Residence / Run</th>
               <th className="text-left p-3">
-                <button className="underline underline-offset-4" onClick={() => setSortToggle("name")}>
+                <button className="underline underline-offset-4" onClick={() => setSortToggle("name")} type="button" aria-label="Sort by name">
                   NAME {sort === "name" ? (dir === "asc" ? "↑" : "↓") : ""}
                 </button>
               </th>
               <th className="text-left p-3">Preview</th>
               <th className="text-left p-3">Age</th>
+              <th className="text-left p-3">AI SOAP</th>
             </tr>
           </thead>
           <tbody>
             {loading && rows.length === 0 && (
               <>
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={i}>{skeleton.props.children}</tr>
+                  <SkeletonRow key={i} />
                 ))}
               </>
             )}
 
             {!loading && rows.length === 0 && !error && (
               <tr>
-                <td className="p-4 text-center text-gray-500" colSpan={5}>
-                  No rows match your filters.
+                <td className="p-6 text-center text-gray-500" colSpan={6}>
+                  No rows match your filters.&nbsp;
+                  <button
+                    className="underline"
+                    onClick={() => {
+                      setQ(""); setFrom(""); setTo(""); setWard(""); setDueOnly(false);
+                    }}
+                    type="button"
+                  >
+                    Clear filters
+                  </button>
                 </td>
               </tr>
             )}
 
             {rows.map((r) => (
               <tr key={r.id} className="odd:bg-gray-50 hover:bg-gray-100">
-                <td className="p-3 whitespace-nowrap">{r.soap_date}</td>
+                <td className="p-3 whitespace-nowrap">
+                  <span title="Date of last SOAP">{r.soap_date}</span>
+                  {r.days_since != null && r.days_since > 30 && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-red-600 text-white" title="Recheck due">
+                      Due
+                    </span>
+                  )}
+                </td>
                 <td className="p-3 whitespace-nowrap">
                   {wardChip(r.ward)}
-                  {displayAreaCage(r)}
+                  {[r.area, r.cage].filter(Boolean).join(" / ") || r.location || "—"}
                 </td>
                 <td className="p-3 font-semibold">
                   {r.soap_id ? (
                     <a className="underline" href={`/soap/${r.soap_id}`}>
-                      {displayName(r)}
+                      {r.name_caps?.trim() || r.name || "—"}
                     </a>
                   ) : (
-                    displayName(r)
+                    r.name_caps?.trim() || r.name || "—"
                   )}
                 </td>
                 <td className="p-3 text-gray-600">
-                  <button className="underline" onClick={() => openDrawer(r)} title="Quick preview">
-                    {r.snippet ?? "—"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button className="underline" onClick={() => openDrawer(r)} title="Quick preview" type="button">
+                      {r.snippet ?? "—"}
+                    </button>
+                    <button
+                      className="text-xs px-2 py-0.5 rounded-full border"
+                      onClick={() => copy(`${r.name_caps?.trim() || r.name || "—"} — ${r.soap_date}\n${r.snippet ?? ""}`)}
+                      type="button"
+                    >
+                      Copy
+                    </button>
+                  </div>
                 </td>
                 <td className="p-3 whitespace-nowrap">
                   <span className={`px-2 py-1 rounded-full text-xs ${ageClass(r.days_since)}`}>
                     {r.days_since == null ? "—" : `${r.days_since}d`}
                   </span>
-                  {r.days_since != null && r.days_since > 30 && (
-                    <span className="ml-2 px-2 py-1 rounded-full text-xs bg-red-600 text-white">Recheck due</span>
-                  )}
+                </td>
+                <td className="p-3 align-top">
+                  <InlineAIGenerator row={r} />
                 </td>
               </tr>
             ))}
@@ -516,8 +649,8 @@ export default function TrackerPage() {
         <div className="fixed inset-0 bg-black/40" onClick={() => setOpen(null)}>
           <div className="absolute right-0 top-0 h-full w-full sm:w-[560px] bg-white p-6 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
-              <h2 className="text-xl font-bold">{displayName(open)}</h2>
-              <button className="p-2" onClick={() => setOpen(null)} aria-label="Close preview">
+              <h2 className="text-xl font-bold">{open.name_caps?.trim() || open.name || "—"}</h2>
+              <button className="p-2" onClick={() => setOpen(null)} aria-label="Close preview" type="button">
                 ✕
               </button>
             </div>
@@ -527,13 +660,11 @@ export default function TrackerPage() {
               <span>•</span>
               <span>{open.location ?? "—"}</span>
               <span>•</span>
-              <span>{displayAreaCage(open)}</span>
+              <span>{[open.area, open.cage].filter(Boolean).join(" / ") || "—"}</span>
               {open.days_since != null && (
                 <>
                   <span>•</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${ageClass(open.days_since)}`}>
-                    {open.days_since}d
-                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${ageClass(open.days_since)}`}>{open.days_since}d</span>
                 </>
               )}
             </div>
@@ -542,24 +673,10 @@ export default function TrackerPage() {
               {open.snippet ?? "No summary available."}
             </pre>
 
+            {/* AI generator (drawer) */}
             <div className="mt-6">
-              <h3 className="font-semibold mb-2">History (last 5)</h3>
-              {historyLoading && <div className="text-sm text-gray-500">Loading…</div>}
-              {!historyLoading && history && history.length === 0 && (
-                <div className="text-sm text-gray-500">No prior SOAPs.</div>
-              )}
-              {!historyLoading && history && history.length > 0 && (
-                <ul className="text-sm space-y-1">
-                  {history.map((h) => (
-                    <li key={h.soap_id}>
-                      <a className="underline" href={`/soap/${h.soap_id}`}>
-                        {h.soap_date}
-                      </a>
-                      <span className="text-gray-500"> — {h.snippet ?? ""}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <h3 className="font-semibold mb-2">AI SOAP</h3>
+              <InlineAIGenerator row={open} />
             </div>
 
             <div className="mt-4 flex gap-2">
@@ -570,11 +687,8 @@ export default function TrackerPage() {
               )}
               <button
                 className="px-3 py-2 rounded-lg border"
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    `${displayName(open)} — ${open.soap_date}\n${open.snippet ?? ""}`
-                  )
-                }
+                onClick={() => copy(`${open.name_caps?.trim() || open.name || "—"} — ${open.soap_date}\n${open.snippet ?? ""}`)}
+                type="button"
               >
                 Copy preview
               </button>
